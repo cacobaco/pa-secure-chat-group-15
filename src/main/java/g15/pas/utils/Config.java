@@ -26,7 +26,7 @@ public class Config {
     }
 
     private static void loadProperties() {
-        try (InputStream inputStream = new FileInputStream(Constants.CONFIG_FILE)) {
+        try (InputStream inputStream = new FileInputStream(Constants.CONFIG_FILE_PATH)) {
             properties.load(inputStream);
         } catch (IOException e) {
             System.err.println("Erro ao carregar o ficheiro de configuração: " + e.getMessage());
