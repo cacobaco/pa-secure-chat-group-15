@@ -1,6 +1,7 @@
 package g15.pas;
 
 import g15.pas.client.Client;
+import g15.pas.client.exceptions.KeyPairCreationException;
 import g15.pas.utils.Config;
 
 import java.io.IOException;
@@ -24,8 +25,10 @@ public class MainClient {
         try {
             Client client = new Client(Config.SERVER_HOST, Config.SERVER_PORT, username);
             client.start();
+        } catch (KeyPairCreationException e) {
+            System.err.println("Erro ao criar par de chaves: " + e.getMessage());
         } catch (IOException e) {
-            System.out.println("Erro ao iniciar o cliente: " + e.getMessage());
+            System.err.println("Erro ao iniciar o cliente: " + e.getMessage());
         }
     }
 
