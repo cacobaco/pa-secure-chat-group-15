@@ -1,11 +1,12 @@
 package g15.pas.utils;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-public class Message {
+public class Message implements Serializable {
 
     private final String sender;
     private String message;
