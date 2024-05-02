@@ -1,6 +1,9 @@
 package g15.pas.client;
 
+
 import g15.pas.utils.*;
+import g15.pas.client.exceptions.KeyPairCreationException;
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -16,6 +19,11 @@ import java.util.Scanner;
 
 public class Client {
 
+    private final PrivateKey privateKey;
+    private final PublicKey publicKey;
+
+    private final Certificate certificate;
+
     private final Socket socket;
     private final ObjectOutputStream out;
     private final ObjectInputStream in;
@@ -27,7 +35,26 @@ public class Client {
     private final BigInteger privateDHKey;
     private final BigInteger publicDHKey;
 
-    public Client(String serverHost, int serverPort, String username) throws Exception {
+
+
+    public Client(String serverHost, int serverPort, String username) throws KeyPairCreationException, IOException {
+        // Create key pair
+        System.out.println("A gerar par de chaves...");
+        KeyPair keyPair;
+        try {
+            keyPair = Encryption.generateKeyPair();
+        } catch (NoSuchAlgorithmException e) {
+            throw new KeyPairCreationException("Erro ao criar o par de chaves: " + e.getMessage(), e);
+        }
+        this.privateKey = keyPair.getPrivate();
+        this.publicKey = keyPair.getPublic();
+        System.out.println("Par de chaves gerado com sucesso.");
+
+        // Create certificate
+        System.out.println("A gerar certificado...");
+        this.certificate = new Certificate(username, publicKey);
+        System.out.println("Certificado gerado com sucesso.");
+
         this.socket = new Socket(serverHost, serverPort);
         this.out = new ObjectOutputStream(socket.getOutputStream());
         this.in = new ObjectInputStream(socket.getInputStream());

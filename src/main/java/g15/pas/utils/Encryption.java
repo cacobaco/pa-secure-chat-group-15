@@ -80,3 +80,4 @@ public class Encryption {
         return cipher.doFinal(message);
     }
 }
+
