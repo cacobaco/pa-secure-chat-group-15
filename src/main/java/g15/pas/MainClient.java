@@ -24,7 +24,7 @@ public class MainClient {
         try {
             Client client = new Client(Config.SERVER_HOST, Config.SERVER_PORT, username);
             client.start();
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.println("Erro ao iniciar o cliente: " + e.getMessage());
         }
     }
