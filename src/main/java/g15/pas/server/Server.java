@@ -1,7 +1,9 @@
 package g15.pas.server;
 
 import g15.pas.server.validators.UsernameValidator;
+import g15.pas.utils.EncryptedMessage;
 import g15.pas.utils.Message;
+import g15.pas.utils.PublicKeyRecipients;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -114,7 +116,8 @@ public class Server {
                 clients.put(username, this);
 
                 for (ClientHandler client : clients.values()) {
-                    client.sendMessage(String.format("Utilizador \"%s\" entrou no chat.", username));
+                    Message messageObj = new Message("Servidor", String.format("Utilizador \"%s\" entrou no chat.", username));
+                    client.sendMessage(messageObj);
                 }
 
                 return true;
@@ -124,12 +127,29 @@ public class Server {
             }
         }
 
+        private boolean handleSharedSecret(PublicKeyRecipients publicKey) {
+            try {
+                Collection<ClientHandler> recipients = clients.values();
+                if (publicKey.getRecipients() != null) {
+                    recipients = recipients.stream()
+                            .filter(client -> publicKey.getRecipients().contains(client.username))
+                            .toList();
+                }
+                for (ClientHandler recipient : recipients) {
+                    recipient.sendMessage(publicKey);
+                }
+                System.out.println("Chave pública enviada de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso");
+                out.writeObject(publicKey);
+                return true;
+            } catch (IOException e) {
+                System.err.println("Erro ao ler chave publica do cliente: " + e.getMessage());
+                return false;
+            }
+        }
+
         private boolean handleChatMessage() {
             try {
-                String message = (String) in.readObject();
-
-                Message messageObj = new Message(username, message);
-
+                EncryptedMessage messageObj = (EncryptedMessage) in.readObject();
                 Collection<ClientHandler> recipients = clients.values();
 
                 if (messageObj.getRecipients() != null) {
@@ -139,20 +159,42 @@ public class Server {
                 }
 
                 for (ClientHandler recipient : recipients) {
-                    recipient.sendMessage(messageObj.getMessage());
+                    recipient.sendMessage(messageObj);
                 }
 
-                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso: " + messageObj.getMessage());
+                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso (Whisper)");
                 return true;
+
             } catch (IOException | ClassNotFoundException e) {
                 System.err.println("Erro ao ler mensagem do cliente: " + e.getMessage());
                 return false;
             }
         }
 
-        private void sendMessage(String message) {
+        private void sendMessage(EncryptedMessage messageObj) {
             try {
-                out.writeObject(message);
+                out.writeObject(messageObj);
+                out.flush();
+            } catch (IOException e) {
+                System.err.println("Erro ao enviar mensagem para o cliente: " + e.getMessage());
+                disconnect();
+            }
+        }
+
+        private void sendMessage(Message messageObj) {
+            try {
+                out.writeObject(messageObj);
+                out.flush();
+            } catch (IOException e) {
+                System.err.println("Erro ao enviar mensagem para o cliente: " + e.getMessage());
+                disconnect();
+            }
+        }
+
+        private void sendMessage(PublicKeyRecipients publicKeyRecipients) {
+            try {
+                out.writeObject(publicKeyRecipients);
+                out.flush();
             } catch (IOException e) {
                 System.err.println("Erro ao enviar mensagem para o cliente: " + e.getMessage());
                 disconnect();
@@ -175,7 +217,8 @@ public class Server {
             System.out.println("Utilizador desconectado: " + username);
 
             for (ClientHandler client : clients.values()) {
-                client.sendMessage(String.format("Utilizador \"%s\" saiu do chat.", username));
+                Message messageObj = new Message("Servidor", String.format("Utilizador \"%s\" saiu do chat.", username));
+                client.sendMessage(messageObj);
             }
 
             close();
