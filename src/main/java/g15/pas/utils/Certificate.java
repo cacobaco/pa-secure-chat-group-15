@@ -1,10 +1,11 @@
 package g15.pas.utils;
 
+import java.io.Serializable;
 import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Certificate {
+public class Certificate implements Serializable {
 
     private final String username;
     private final PublicKey publicKey;

@@ -1,6 +1,10 @@
 package g15.pas.server;
 
+import g15.pas.exceptions.ConnectionException;
+import g15.pas.exceptions.InvalidCertificateException;
 import g15.pas.server.validators.UsernameValidator;
+import g15.pas.utils.Certificate;
+import g15.pas.utils.Logger;
 import g15.pas.utils.Message;
 
 import java.io.IOException;
@@ -8,7 +12,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
@@ -17,47 +23,80 @@ public class Server {
     private final ConcurrentHashMap<String, ClientHandler> clients;
 
     public Server(int port) throws IOException {
-        System.out.println("A iniciar servidor...");
+        Logger.log("A iniciar servidor...");
         this.serverSocket = new ServerSocket(port);
         this.clients = new ConcurrentHashMap<>();
-        System.out.printf("Servidor iniciado na porta %d.\n", port);
+        Logger.log("Servidor iniciado com sucesso na porta \"%d\".", port);
     }
 
     public void start() {
-        System.out.println("Servidor pronto para aceitar conexões.");
+        Logger.log("Servidor à espera de conexões...");
 
         while (true) {
-            Socket socket = null;
-
             try {
-                System.out.println("À espera de nova conexão...");
-                socket = serverSocket.accept();
-                System.out.printf("Nova conexão recebida de \"%s:%d.\n", socket.getInetAddress().getHostAddress(), socket.getPort());
+                Socket socket = serverSocket.accept();
+                Logger.log("Nova conexão aceite.");
+                createClientHandler(socket);
             } catch (IOException e) {
-                System.err.println("Erro ao aceitar conexão: " + e.getMessage());
-                close();
-                break;
-            }
-
-            try {
-                ClientHandler clientHandler = new ClientHandler(socket);
-                Thread clientThread = new Thread(clientHandler);
-                clientThread.start();
-            } catch (IOException e) {
-                System.err.println("Erro ao criar handler para cliente: " + e.getMessage());
-                close();
+                Logger.error("Erro ao aceitar conexão: " + e.getMessage());
                 break;
             }
         }
+
+        close();
+    }
+
+    public void stop() {
+        close();
     }
 
     private void close() {
         try {
-            System.out.println("A fechar servidor...");
+            Logger.log("A fechar servidor...");
             serverSocket.close();
-            System.out.println("Servidor fechado.");
+            Logger.log("Servidor fechado com sucesso.");
         } catch (IOException e) {
-            System.err.println("Erro ao fechar socket do servidor: " + e.getMessage());
+            Logger.error("Erro ao fechar servidor: " + e.getMessage());
+        }
+    }
+
+    private void createClientHandler(Socket socket) {
+        try {
+            Logger.log("A criar handler para o cliente...");
+            ClientHandler clientHandler = new ClientHandler(socket);
+            Thread clientThread = new Thread(clientHandler);
+            clientThread.start();
+            Logger.log("Handler criado com sucesso.");
+        } catch (IOException e) {
+            Logger.error("Erro ao criar handler para o cliente: " + e.getMessage());
+        }
+    }
+
+    private void addClient(String username, ClientHandler clientHandler) {
+        clients.put(username, clientHandler);
+
+        for (ClientHandler client : clients.values()) {
+            try {
+                Message message = new Message("O utilizador \"" + username + "\" ligou-se ao chat.");
+                client.sendMessage(message);
+            } catch (ConnectionException e) {
+                Logger.error("Erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
+                client.closeConnection();
+            }
+        }
+    }
+
+    private void removeClient(String username) {
+        clients.remove(username);
+
+        for (ClientHandler client : clients.values()) {
+            try {
+                Message message = new Message("O utilizador \"" + username + "\" desligou-se do chat.");
+                client.sendMessage(message);
+            } catch (ConnectionException e) {
+                Logger.error("Erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
+                if (!username.equals(client.username)) client.closeConnection();
+            }
         }
     }
 
@@ -69,116 +108,131 @@ public class Server {
         private String username;
 
         public ClientHandler(Socket socket) throws IOException {
-            System.out.println("A criar novo handler para cliente...");
             this.socket = socket;
             this.in = new ObjectInputStream(socket.getInputStream());
             this.out = new ObjectOutputStream(socket.getOutputStream());
-            System.out.println("Handler criado com sucesso.");
         }
 
         @Override
         public void run() {
-            if (!handleUsernameMessage()) {
-                close();
+            try {
+                receiveCertificate();
+            } catch (InvalidCertificateException e) {
+                Logger.error("Ocorreu um erro ao receber certificado: " + e.getMessage());
+                try {
+                    sendCertificateResponse(false);
+                } catch (ConnectionException ex) {
+                    Logger.error("Ocorreu um erro ao enviar resposta do certificado: " + ex.getMessage());
+                } finally {
+                    closeConnection();
+                }
                 return;
             }
 
-            while (true) {
-                if (!handleChatMessage()) {
-                    break;
-                }
+            try {
+                sendCertificateResponse(true);
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar resposta do certificado: " + e.getMessage());
+                closeConnection();
+                return;
             }
 
-            disconnect();
+            addClient(username, this);
+
+            while (handleChatMessage()) ;
+
+            closeConnection();
         }
 
-        private boolean handleUsernameMessage() {
+        private void closeConnection() {
             try {
-                String username = (String) in.readObject();
+                Logger.log("A fechar conexão...");
+
+                if (username != null) removeClient(username);
+
+                in.close();
+                out.close();
+                socket.close();
+
+                Logger.log("Conexão fechada com sucesso.");
+            } catch (IOException e) {
+                Logger.error("Erro ao fechar conexão: " + e.getMessage());
+            }
+        }
+
+        private void receiveCertificate() throws InvalidCertificateException {
+            try {
+                Logger.log("A receber certificado...");
+
+                Certificate certificate = (Certificate) in.readObject();
+
+                String username = certificate.getUsername();
 
                 if (!UsernameValidator.isValid(username)) {
-                    out.writeBoolean(false);
-                    System.out.println("Nome de utilizador inválido: " + username);
-                    return false;
+                    throw new InvalidCertificateException("O nome de utilizador não é válido.");
                 }
 
                 if (clients.containsKey(username)) {
-                    out.writeBoolean(false);
-                    System.out.println("Nome de utilizador já em uso: " + username);
-                    return false;
+                    throw new InvalidCertificateException("O nome de utilizador já está em uso.");
                 }
 
-                out.writeObject(true);
-                System.out.println("Novo utilizador: " + username);
                 this.username = username;
-                clients.put(username, this);
 
-                for (ClientHandler client : clients.values()) {
-                    client.sendMessage(String.format("Utilizador \"%s\" entrou no chat.", username));
-                }
-
-                return true;
+                Logger.log("Certificado recebido com sucesso.");
             } catch (IOException | ClassNotFoundException e) {
-                System.err.println("Erro ao ler mensagem do cliente: " + e.getMessage());
-                return false;
+                throw new InvalidCertificateException(e);
+            }
+        }
+
+        private void sendCertificateResponse(boolean response) throws ConnectionException {
+            try {
+                Logger.log("A enviar resposta do certificado...");
+                out.writeObject(response);
+                Logger.log("Resposta do certificado enviada com sucesso.");
+            } catch (IOException e) {
+                throw new ConnectionException(e);
             }
         }
 
         private boolean handleChatMessage() {
             try {
-                String message = (String) in.readObject();
-
-                Message messageObj = new Message(username, message);
+                Message message = (Message) in.readObject();
 
                 Collection<ClientHandler> recipients = clients.values();
 
-                if (messageObj.getRecipients() != null) {
+                if (message.getRecipients() != null) {
+                    List<String> messageRecipients = Arrays.asList(message.getRecipients());
+
                     recipients = recipients.stream()
-                            .filter(client -> messageObj.getRecipients().contains(client.username))
+                            .filter(client -> messageRecipients.contains(client.username))
                             .toList();
                 }
 
                 for (ClientHandler recipient : recipients) {
-                    recipient.sendMessage(messageObj.getMessage());
+                    try {
+                        recipient.sendMessage(message);
+                    } catch (ConnectionException e) {
+                        Logger.error("Erro ao enviar mensagem para \"%s\": " + e.getMessage(), recipient.username);
+                        recipient.closeConnection();
+                    }
                 }
 
-                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso: " + messageObj.getMessage());
+                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso: " + message.getContent());
                 return true;
             } catch (IOException | ClassNotFoundException e) {
-                System.err.println("Erro ao ler mensagem do cliente: " + e.getMessage());
+                System.out.println("Erro ao ler mensagem do cliente: " + e.getMessage());
                 return false;
             }
         }
 
-        private void sendMessage(String message) {
+        private void sendMessage(Message message) throws ConnectionException {
             try {
+                Logger.log("A enviar mensagem para \"%s\": \"%s\"", username, message.getContent());
                 out.writeObject(message);
+                Logger.log("Mensagem enviada com sucesso.");
             } catch (IOException e) {
-                System.err.println("Erro ao enviar mensagem para o cliente: " + e.getMessage());
-                disconnect();
+                throw new ConnectionException(e);
             }
-        }
-
-        private void close() {
-            try {
-                out.close();
-                in.close();
-                socket.close();
-            } catch (IOException e) {
-                System.err.println("Erro ao fechar streams e socket do cliente: " + e.getMessage());
-            }
-        }
-
-        private void disconnect() {
-            clients.remove(username);
-
-            System.out.println("Utilizador desconectado: " + username);
-
-            for (ClientHandler client : clients.values()) {
-                client.sendMessage(String.format("Utilizador \"%s\" saiu do chat.", username));
-            }
-
-            close();
         }
 
     }

@@ -1,16 +1,16 @@
-package g15.pas.client.exceptions;
+package g15.pas.exceptions;
 
 public class KeyPairCreationException extends Exception {
 
     public static final String CODE = "KEY_PAIR_CREATION_ERROR";
-    private static final String DEFAULT_MESSAGE = "An error occurred while creating the key pair.";
+    private static final String MESSAGE = "Ocorreu um erro ao gerar um par de chaves.";
 
     public KeyPairCreationException() {
-        super(DEFAULT_MESSAGE);
+        super(MESSAGE);
     }
 
     public KeyPairCreationException(Throwable cause) {
-        super(DEFAULT_MESSAGE, cause);
+        super(MESSAGE, cause);
     }
 
     public KeyPairCreationException(String message) {

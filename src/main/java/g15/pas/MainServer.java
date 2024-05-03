@@ -2,6 +2,7 @@ package g15.pas;
 
 import g15.pas.server.Server;
 import g15.pas.utils.Config;
+import g15.pas.utils.Logger;
 
 import java.io.IOException;
 
@@ -16,7 +17,7 @@ public class MainServer {
             Server server = new Server(Config.SERVER_PORT);
             server.start();
         } catch (IOException e) {
-            System.err.println("Ocorreu um erro ao criar o servidor: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao criar o servidor: " + e.getMessage());
         }
     }
 
