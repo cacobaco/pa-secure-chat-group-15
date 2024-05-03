@@ -100,6 +100,29 @@ public class Server {
         }
     }
 
+    private void handleMessage(Message message) {
+        Collection<ClientHandler> recipients = clients.values();
+
+        if (message.getRecipients() != null) {
+            List<String> messageRecipients = Arrays.asList(message.getRecipients());
+
+            recipients = recipients.stream()
+                    .filter(client -> messageRecipients.contains(client.username))
+                    .toList();
+        }
+
+        for (ClientHandler recipient : recipients) {
+            try {
+                recipient.sendMessage(message);
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar mensagem para \"%s\": " + e.getMessage(), recipient.username);
+                recipient.closeConnection();
+            }
+        }
+
+        Logger.log("Mensagem de \"%s\" para %d destinatários enviada com sucesso: \"%s\"", message.getSender(), recipients.size(), message.getContent());
+    }
+
     private class ClientHandler implements Runnable {
 
         private final Socket socket;
@@ -139,7 +162,15 @@ public class Server {
 
             addClient(username, this);
 
-            while (handleChatMessage()) ;
+            while (true) {
+                try {
+                    Message message = (Message) in.readObject();
+                    handleMessage(message);
+                } catch (IOException | ClassNotFoundException e) {
+                    Logger.error("Ocorreu um ao ler mensagem do cliente: " + e.getMessage());
+                    break;
+                }
+            }
 
             closeConnection();
         }
@@ -191,37 +222,6 @@ public class Server {
                 Logger.log("Resposta do certificado enviada com sucesso.");
             } catch (IOException e) {
                 throw new ConnectionException(e);
-            }
-        }
-
-        private boolean handleChatMessage() {
-            try {
-                Message message = (Message) in.readObject();
-
-                Collection<ClientHandler> recipients = clients.values();
-
-                if (message.getRecipients() != null) {
-                    List<String> messageRecipients = Arrays.asList(message.getRecipients());
-
-                    recipients = recipients.stream()
-                            .filter(client -> messageRecipients.contains(client.username))
-                            .toList();
-                }
-
-                for (ClientHandler recipient : recipients) {
-                    try {
-                        recipient.sendMessage(message);
-                    } catch (ConnectionException e) {
-                        Logger.error("Erro ao enviar mensagem para \"%s\": " + e.getMessage(), recipient.username);
-                        recipient.closeConnection();
-                    }
-                }
-
-                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso: " + message.getContent());
-                return true;
-            } catch (IOException | ClassNotFoundException e) {
-                System.out.println("Erro ao ler mensagem do cliente: " + e.getMessage());
-                return false;
             }
         }
 
