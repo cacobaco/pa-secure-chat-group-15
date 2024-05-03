@@ -15,7 +15,7 @@ public class MainClient {
 
     private static String askForUsername() {
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Insira o seu nome de utilizador: ");
+        Logger.log("Insira o seu nome de utilizador: ");
         return scanner.nextLine();
     }
 
