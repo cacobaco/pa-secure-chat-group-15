@@ -56,7 +56,7 @@ public class Server {
             serverSocket.close();
             Logger.log("Servidor fechado com sucesso.");
         } catch (IOException e) {
-            Logger.error("Erro ao fechar servidor: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao fechar servidor: " + e.getMessage());
         }
     }
 
@@ -68,7 +68,7 @@ public class Server {
             clientThread.start();
             Logger.log("Handler criado com sucesso.");
         } catch (IOException e) {
-            Logger.error("Erro ao criar handler para o cliente: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao criar handler para o cliente: " + e.getMessage());
         }
     }
 
@@ -80,7 +80,7 @@ public class Server {
                 Message message = new Message("O utilizador \"" + username + "\" ligou-se ao chat.");
                 client.sendMessage(message);
             } catch (ConnectionException e) {
-                Logger.error("Erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
+                Logger.error("Ocorreu um erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
                 client.closeConnection();
             }
         }
@@ -94,7 +94,7 @@ public class Server {
                 Message message = new Message("O utilizador \"" + username + "\" desligou-se do chat.");
                 client.sendMessage(message);
             } catch (ConnectionException e) {
-                Logger.error("Erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
+                Logger.error("Ocorreu um erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
                 if (!username.equals(client.username)) client.closeConnection();
             }
         }
@@ -187,7 +187,7 @@ public class Server {
 
                 Logger.log("Conexão fechada com sucesso.");
             } catch (IOException e) {
-                Logger.error("Erro ao fechar conexão: " + e.getMessage());
+                Logger.error("Ocorreu um erro ao fechar conexão: " + e.getMessage());
             }
         }
 
