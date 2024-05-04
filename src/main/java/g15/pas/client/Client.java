@@ -8,7 +8,9 @@ import g15.pas.utils.Encryption;
 import g15.pas.utils.Logger;
 import g15.pas.utils.Message;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -37,13 +39,6 @@ public class Client {
     private ObjectInputStream in;
     private Thread serverListener;
 
-    private Socket socketCA;
-    private ObjectOutputStream outCA;
-    //private final ObjectInputStream inCA;
-    private final String caHost;
-    private final int caPort;
-
-
     /**
      * Constructs a new Client with the specified username, server host, and server port.
      * It generates a key pair and a certificate for the client.
@@ -53,12 +48,10 @@ public class Client {
      * @param serverPort the port of the server
      * @throws KeyPairCreationException if an error occurs while generating the key pair
      */
-    public Client(String username, String serverHost, int serverPort ,String caHost, int caPort) throws KeyPairCreationException {
+    public Client(String username, String serverHost, int serverPort) throws KeyPairCreationException {
         this.username = username;
         this.serverHost = serverHost;
         this.serverPort = serverPort;
-        this.caHost = caHost;
-        this.caPort = caPort;
 
         // Create key pair
         Logger.log("A gerar par de chaves...");
@@ -123,7 +116,7 @@ public class Client {
         }
 
         try {
-            sendCertificate(certificate,"CertificateStorage");
+            sendCertificate();
         } catch (ConnectionException e) {
             Logger.error("Ocorreu um erro ao enviar o certificado: " + e.getMessage());
             disconnectFromServer();
@@ -203,62 +196,19 @@ public class Client {
         }
     }
 
-    private void connectToCA() throws ConnectionException {
-        try {
-            Logger.log("A conectar ao certificado de autenticacao...");
-
-            socketCA = new Socket(caHost, caPort);
-            outCA = new ObjectOutputStream(socketCA.getOutputStream());
-            //this.inCA = new ObjectInputStream(socketCA.getInputStream());
-            Logger.log("Conexão ao servidor estabelecida com sucesso.");
-
-            /*
-            socket = new Socket(serverHost, serverPort);
-            out = new ObjectOutputStream(socket.getOutputStream());
-            in = new ObjectInputStream(socket.getInputStream());
-            Logger.log("Conexão ao servidor estabelecida com sucesso.");*/
-        } catch (IOException e) {
-            throw new ConnectionException(e);
-        }
-    }
-
     /**
      * Sends the client's certificate to the server.
      *
      * @throws ConnectionException if an error occurs while sending the certificate
      */
-    private void sendCertificate(Certificate certificate,String folderPath) throws ConnectionException {
-
+    private void sendCertificate() throws ConnectionException {
+        try {
             Logger.log("A enviar certificado...");
-            //out.writeObject(certificate);
-            try {
-                File folder = new File(folderPath);
-                if (!folder.exists()) {
-                    folder.mkdirs(); // Create the folder if it doesn't exist
-                }
-
-                File certificateFile = new File(folder, "certificate" + username + ".txt");
-
-                StringBuilder certificateContent = new StringBuilder();
-                certificateContent.append("Username: ").append(username).append("\n");
-                certificateContent.append("Public Key: ").append(publicKey).append("\n");
-                certificateContent.append("hash: ").append(certificate.getAdditionalInfo()).append("\n");
-
-
-                try (FileWriter writer = new FileWriter(certificateFile)) {
-                    writer.write(certificateContent.toString());
-                }
-
-
-                System.out.println("Certificado salvo: " + certificateFile.getAbsolutePath());
-            } catch (IOException e) {
-                System.err.println("Error saving certificate to folder: " + e.getMessage());
-            }
-
-
+            out.writeObject(certificate);
             Logger.log("Certificado enviado com sucesso.");
-
-
+        } catch (IOException e) {
+            throw new ConnectionException(e);
+        }
     }
 
     /**
