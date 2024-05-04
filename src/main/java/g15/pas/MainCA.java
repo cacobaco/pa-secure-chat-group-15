@@ -8,16 +8,14 @@ import java.io.IOException;
 
 public class MainCA {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         startServer();
     }
 
-    private static void startServer() {
+    private static void startServer() throws IOException {
         try {
             CertificateAuthority ca = new CertificateAuthority(Config.CA_PORT);
             ca.start();
-        } catch (IOException e) {
-            System.err.println("Ocorreu um erro ao criar o servidor: " + e.getMessage());
         } catch (KeyPairCreationException e) {
             throw new RuntimeException(e);
         }

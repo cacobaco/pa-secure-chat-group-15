@@ -23,7 +23,7 @@ public class MainClient {
         String username = askForUsername();
 
         try {
-            Client client = new Client(username, Config.SERVER_HOST, Config.SERVER_PORT);
+            Client client = new Client(username, Config.SERVER_HOST, Config.SERVER_PORT,Config.CA_HOST, Config.CA_PORT);
             client.start();
         } catch (KeyPairCreationException e) {
             Logger.error("Ocorreu um erro ao criar par de chaves: " + e.getMessage());
