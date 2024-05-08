@@ -3,6 +3,9 @@ package g15.pas.utils;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * This class contains constants that are used throughout the project.
+ */
 public class Constants {
 
     public static final String CONFIG_FILE_PATH = "project.config";

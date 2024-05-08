@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+/**
+ * This class is responsible for loading and providing access to the properties defined in the configuration file.
+ */
 public class Config {
 
     private static final Properties properties = new Properties();
@@ -25,11 +28,14 @@ public class Config {
         USERNAME_REGEX = properties.getProperty("username.regex", "^[a-zA-Z0-9_]+$");
     }
 
+    /**
+     * Loads the properties from the configuration file into the Properties object.
+     */
     private static void loadProperties() {
         try (InputStream inputStream = new FileInputStream(Constants.CONFIG_FILE_PATH)) {
             properties.load(inputStream);
         } catch (IOException e) {
-            System.err.println("Erro ao carregar o ficheiro de configuração: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao carregar o ficheiro de configuração: " + e.getMessage());
         }
     }
 

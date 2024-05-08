@@ -2,11 +2,17 @@ package g15.pas.client;
 
 import g15.pas.exceptions.ConnectionException;
 import g15.pas.exceptions.InvalidCertificateException;
+import g15.pas.exceptions.InvalidCommandException;
 import g15.pas.exceptions.KeyPairCreationException;
+import g15.pas.message.Message;
+import g15.pas.message.enums.CommandType;
+import g15.pas.message.messages.BooleanMessage;
+import g15.pas.message.messages.CertificateMessage;
+import g15.pas.message.messages.CommandMessage;
+import g15.pas.message.messages.TextMessage;
 import g15.pas.utils.Certificate;
 import g15.pas.utils.Encryption;
 import g15.pas.utils.Logger;
-import g15.pas.utils.Message;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -16,6 +22,8 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 /**
@@ -131,6 +139,14 @@ public class Client {
             return;
         }
 
+        try {
+            requestCertificates();
+        } catch (ConnectionException e) {
+            Logger.error("Ocorreu um erro ao pedir certificados: " + e.getMessage());
+            disconnectFromServer();
+            return;
+        }
+
         serverListener = new Thread(new ServerListener());
         serverListener.start();
 
@@ -139,7 +155,10 @@ public class Client {
         do {
             String message = scanner.nextLine();
 
-            if (!sendMessage(message)) {
+            try {
+                sendMessage(message);
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar a mensagem: " + e.getMessage());
                 break;
             }
         } while (true);
@@ -202,13 +221,12 @@ public class Client {
      * @throws ConnectionException if an error occurs while sending the certificate
      */
     private void sendCertificate() throws ConnectionException {
-        try {
-            Logger.log("A enviar certificado...");
-            out.writeObject(certificate);
-            Logger.log("Certificado enviado com sucesso.");
-        } catch (IOException e) {
-            throw new ConnectionException(e);
-        }
+        Logger.log("A enviar certificado...");
+
+        CertificateMessage certificateMessage = new CertificateMessage(certificate, username);
+        sendMessage(certificateMessage);
+
+        Logger.log("Certificado enviado com sucesso.");
     }
 
     /**
@@ -220,9 +238,9 @@ public class Client {
         try {
             Logger.log("A receber resposta do certificado...");
 
-            Boolean response = (Boolean) in.readObject();
+            BooleanMessage response = (BooleanMessage) in.readObject();
 
-            if (!response) {
+            if (!response.getContent()) {
                 throw new InvalidCertificateException();
             }
 
@@ -232,21 +250,34 @@ public class Client {
         }
     }
 
+    private void requestCertificates() throws ConnectionException {
+        CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_CERTIFICATE, username);
+        sendMessage(commandMessage);
+    }
+
+    /**
+     * Sends a text message to the server.
+     *
+     * @param message the message to send
+     * @throws ConnectionException if an error occurs while sending the message
+     */
+    private void sendMessage(String message) throws ConnectionException {
+        TextMessage textMessageObject = TextMessage.fromString(message, username);
+        sendMessage(textMessageObject);
+    }
+
     /**
      * Sends a message to the server.
      *
      * @param message the message to send
-     * @return true if the message was sent successfully, false otherwise
+     * @throws ConnectionException if an error occurs while sending the message
      */
-    private boolean sendMessage(String message) {
+    private void sendMessage(Message message) throws ConnectionException {
         try {
-            Message messageObject = Message.fromString(message, username);
-            out.writeObject(messageObject);
-            return true;
+            out.writeObject(message);
+            out.flush();
         } catch (IOException e) {
-            Logger.error("Ocorreu um erro ao enviar uma mensagem: " + e.getMessage());
-            disconnectFromServer();
-            return false;
+            throw new ConnectionException(e);
         }
     }
 
@@ -273,20 +304,71 @@ public class Client {
      */
     private class ServerListener implements Runnable {
 
+        private final Map<String, Certificate> certificates = new HashMap<>();
+
         @Override
         public void run() {
             while (true) {
                 try {
                     Message message = (Message) in.readObject();
-                    message.format();
-                    Logger.log(message.getContent());
+                    handleMessage(message);
                 } catch (IOException | ClassNotFoundException e) {
-                    Logger.error("Ocorreu um erro ao receber uma mensagem do servidor: " + e.getMessage());
+                    Logger.error("Ocorreu um erro ao receber uma mensagem: " + e.getMessage());
                     break;
                 }
             }
 
-            // TODO implement disconnect
+            disconnectFromServer();
+        }
+
+        private void handleMessage(Message message) {
+            if (message instanceof CertificateMessage certificateMessage) {
+                try {
+                    handleCertificateMessage(certificateMessage);
+                } catch (InvalidCertificateException e) {
+                    Logger.error("Ocorreu um erro ao processar o certificado: " + e.getMessage());
+                }
+            } else if (message instanceof CommandMessage commandMessage) {
+                try {
+                    handleCommandMessage(commandMessage);
+                } catch (InvalidCommandException e) {
+                    Logger.error("Ocorreu um erro ao processar o comando: " + e.getMessage());
+                }
+            } else if (message instanceof TextMessage textMessage) {
+                handleTextMessage(textMessage);
+            } else {
+                Logger.error("Mensagem inválida recebida: %s" + message.getClass().getSimpleName());
+            }
+        }
+
+        private void handleCertificateMessage(CertificateMessage certificateMessage) throws InvalidCertificateException {
+            if (username.equals(certificateMessage.getSender())) return;
+
+            Certificate receivedCertificate = certificateMessage.getContent();
+            validateCertificate(receivedCertificate); // TODO implement
+            certificates.put(receivedCertificate.getUsername(), receivedCertificate);
+        }
+
+        private void handleCommandMessage(CommandMessage commandMessage) throws InvalidCommandException {
+            if (username.equals(commandMessage.getSender())) return;
+
+            if (commandMessage.getContent() == CommandType.REQUEST_CERTIFICATE) {
+                String[] recipients = new String[]{commandMessage.getSender()};
+                CertificateMessage response = new CertificateMessage(certificate, username, recipients);
+
+                try {
+                    sendMessage(response);
+                } catch (ConnectionException e) {
+                    Logger.error("Ocorreu um erro ao enviar o certificado: " + e.getMessage());
+                }
+            } else {
+                throw new InvalidCommandException("Comando inválido recebido: %s" + commandMessage.getContent());
+            }
+        }
+
+        private void handleTextMessage(TextMessage textMessage) {
+            textMessage.format();
+            Logger.log(textMessage.getContent());
         }
 
         /**

@@ -2,10 +2,13 @@ package g15.pas.server;
 
 import g15.pas.exceptions.ConnectionException;
 import g15.pas.exceptions.InvalidCertificateException;
+import g15.pas.exceptions.InvalidUsernameException;
+import g15.pas.message.Message;
+import g15.pas.message.messages.BooleanMessage;
+import g15.pas.message.messages.CertificateMessage;
+import g15.pas.message.messages.TextMessage;
 import g15.pas.server.validators.UsernameValidator;
-import g15.pas.utils.Certificate;
 import g15.pas.utils.Logger;
-import g15.pas.utils.Message;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -56,7 +59,7 @@ public class Server {
             serverSocket.close();
             Logger.log("Servidor fechado com sucesso.");
         } catch (IOException e) {
-            Logger.error("Erro ao fechar servidor: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao fechar servidor: " + e.getMessage());
         }
     }
 
@@ -64,11 +67,10 @@ public class Server {
         try {
             Logger.log("A criar handler para o cliente...");
             ClientHandler clientHandler = new ClientHandler(socket);
-            Thread clientThread = new Thread(clientHandler);
-            clientThread.start();
+            clientHandler.start();
             Logger.log("Handler criado com sucesso.");
         } catch (IOException e) {
-            Logger.error("Erro ao criar handler para o cliente: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao criar handler para o cliente: " + e.getMessage());
         }
     }
 
@@ -77,10 +79,10 @@ public class Server {
 
         for (ClientHandler client : clients.values()) {
             try {
-                Message message = new Message("O utilizador \"" + username + "\" ligou-se ao chat.");
+                TextMessage message = new TextMessage("O utilizador \"" + username + "\" ligou-se ao chat.");
                 client.sendMessage(message);
             } catch (ConnectionException e) {
-                Logger.error("Erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
+                Logger.error("Ocorreu um erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
                 client.closeConnection();
             }
         }
@@ -91,16 +93,39 @@ public class Server {
 
         for (ClientHandler client : clients.values()) {
             try {
-                Message message = new Message("O utilizador \"" + username + "\" desligou-se do chat.");
+                TextMessage message = new TextMessage("O utilizador \"" + username + "\" desligou-se do chat.");
                 client.sendMessage(message);
             } catch (ConnectionException e) {
-                Logger.error("Erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
+                Logger.error("Ocorreu um erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
                 if (!username.equals(client.username)) client.closeConnection();
             }
         }
     }
 
-    private class ClientHandler implements Runnable {
+    private void handleMessage(Message message) {
+        Collection<ClientHandler> recipients = clients.values();
+
+        if (message.getRecipients() != null) {
+            List<String> messageRecipients = Arrays.asList(message.getRecipients());
+
+            recipients = recipients.stream()
+                    .filter(client -> messageRecipients.contains(client.username))
+                    .toList();
+        }
+
+        for (ClientHandler recipient : recipients) {
+            try {
+                recipient.sendMessage(message);
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar mensagem para \"%s\": " + e.getMessage(), recipient.username);
+                recipient.closeConnection();
+            }
+        }
+
+        Logger.log("Mensagem de \"%s\" para %d destinatários enviada com sucesso: \"%s\"", message.getSender(), recipients.size(), message.getContent());
+    }
+
+    private class ClientHandler extends Thread {
 
         private final Socket socket;
         private final ObjectInputStream in;
@@ -116,8 +141,8 @@ public class Server {
         @Override
         public void run() {
             try {
-                receiveCertificate();
-            } catch (InvalidCertificateException e) {
+                receiveCertificateMessage();
+            } catch (InvalidUsernameException | InvalidCertificateException e) {
                 Logger.error("Ocorreu um erro ao receber certificado: " + e.getMessage());
                 try {
                     sendCertificateResponse(false);
@@ -139,7 +164,15 @@ public class Server {
 
             addClient(username, this);
 
-            while (handleChatMessage()) ;
+            while (true) {
+                try {
+                    Message message = (Message) in.readObject();
+                    handleMessage(message);
+                } catch (IOException | ClassNotFoundException e) {
+                    Logger.error("Ocorreu um ao ler mensagem do cliente: " + e.getMessage());
+                    break;
+                }
+            }
 
             closeConnection();
         }
@@ -156,82 +189,61 @@ public class Server {
 
                 Logger.log("Conexão fechada com sucesso.");
             } catch (IOException e) {
-                Logger.error("Erro ao fechar conexão: " + e.getMessage());
+                Logger.error("Ocorreu um erro ao fechar conexão: " + e.getMessage());
+            } finally {
+                this.interrupt();
             }
         }
 
-        private void receiveCertificate() throws InvalidCertificateException {
+        private void receiveCertificateMessage() throws InvalidUsernameException, InvalidCertificateException {
             try {
                 Logger.log("A receber certificado...");
 
-                Certificate certificate = (Certificate) in.readObject();
+                CertificateMessage certificateMessage = (CertificateMessage) in.readObject();
 
-                String username = certificate.getUsername();
+                String username = certificateMessage.getSender();
 
                 if (!UsernameValidator.isValid(username)) {
-                    throw new InvalidCertificateException("O nome de utilizador não é válido.");
+                    throw new InvalidUsernameException("O nome de utilizador não é válido.");
                 }
 
                 if (clients.containsKey(username)) {
-                    throw new InvalidCertificateException("O nome de utilizador já está em uso.");
+                    throw new InvalidUsernameException("O nome de utilizador já está em uso.");
                 }
 
                 this.username = username;
 
                 Logger.log("Certificado recebido com sucesso.");
+
+                Logger.log("A propagar certificado para os outros clientes...");
+
+                handleMessage(certificateMessage);
+
+                Logger.log("Certificado propagado com sucesso.");
             } catch (IOException | ClassNotFoundException e) {
                 throw new InvalidCertificateException(e);
             }
         }
 
         private void sendCertificateResponse(boolean response) throws ConnectionException {
-            try {
-                Logger.log("A enviar resposta do certificado...");
-                out.writeObject(response);
-                Logger.log("Resposta do certificado enviada com sucesso.");
-            } catch (IOException e) {
-                throw new ConnectionException(e);
-            }
+            Logger.log("A enviar resposta do certificado...");
+
+            BooleanMessage responseMessage = new BooleanMessage(response);
+            sendMessage(responseMessage);
+
+            Logger.log("Resposta do certificado enviada com sucesso.");
         }
 
-        private boolean handleChatMessage() {
-            try {
-                Message message = (Message) in.readObject();
-
-                Collection<ClientHandler> recipients = clients.values();
-
-                if (message.getRecipients() != null) {
-                    List<String> messageRecipients = Arrays.asList(message.getRecipients());
-
-                    recipients = recipients.stream()
-                            .filter(client -> messageRecipients.contains(client.username))
-                            .toList();
+        public void sendMessage(Message message) throws ConnectionException {
+            synchronized (out) {
+                try {
+                    Logger.log("A enviar mensagem para \"%s\": \"%s\"", username, message.getContent());
+                    out.writeObject(message);
+                    out.flush();
+                    Logger.log("Mensagem enviada com sucesso.");
+                } catch (IOException e) {
+                    throw new ConnectionException(e);
                 }
-
-                for (ClientHandler recipient : recipients) {
-                    try {
-                        recipient.sendMessage(message);
-                    } catch (ConnectionException e) {
-                        Logger.error("Erro ao enviar mensagem para \"%s\": " + e.getMessage(), recipient.username);
-                        recipient.closeConnection();
-                    }
-                }
-
-                System.out.println("Mensagem de \"" + username + "\" para " + recipients.size() + " destinatários enviada com sucesso: " + message.getContent());
-                return true;
-            } catch (IOException | ClassNotFoundException e) {
-                System.out.println("Erro ao ler mensagem do cliente: " + e.getMessage());
-                return false;
-            }
-        }
-
-        private void sendMessage(Message message) throws ConnectionException {
-            try {
-                Logger.log("A enviar mensagem para \"%s\": \"%s\"", username, message.getContent());
-                out.writeObject(message);
-                Logger.log("Mensagem enviada com sucesso.");
-            } catch (IOException e) {
-                throw new ConnectionException(e);
             }
         }
 
