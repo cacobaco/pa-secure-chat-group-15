@@ -61,13 +61,13 @@ public class Client {
      * @param serverPort the port of the server
      * @throws KeyPairCreationException if an error occurs while generating the key pair
      */
-    public Client(String username, String serverHost, int serverPort) throws KeyPairCreationException {
+    public Client(String username, String serverHost, int serverPort, String caHost, int caPort) throws KeyPairCreationException {
         this.username = username;
         this.serverHost = serverHost;
         this.serverPort = serverPort;
 
-        this.caHost = serverHost;
-        this.caPort = serverPort;
+        this.caHost = caHost;
+        this.caPort = caPort;
 
 
         // Create key pair

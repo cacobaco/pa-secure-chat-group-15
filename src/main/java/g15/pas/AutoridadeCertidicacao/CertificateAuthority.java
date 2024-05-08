@@ -20,6 +20,8 @@ public class CertificateAuthority {
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
     private final ServerSocket caSocket;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
     private String username;
     private String filePath;
 
@@ -35,6 +37,7 @@ public class CertificateAuthority {
 
 
         // Create key pair
+        //System.out.println("A gerar par de chaves...");
         KeyPair keyPair;
         try {
             keyPair = Encryption.generateKeyPair();
@@ -43,7 +46,7 @@ public class CertificateAuthority {
         }
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
-
+        // System.out.println("Par de chaves gerado com sucesso.");
 
 
     }
@@ -58,7 +61,6 @@ public class CertificateAuthority {
                     socket = caSocket.accept();
                     ObjectInputStream inCA = new ObjectInputStream(socket.getInputStream());
                     Object receivedObject = inCA.readObject();
-                    System.out.println("Mensagem recebida do cliente: " + username);
 
                     //sha-256 hash
                     if (receivedObject instanceof String) {
@@ -67,12 +69,10 @@ public class CertificateAuthority {
                         System.out.println("Mensagem recebida do cliente: " + username);
                         calculateSHA256(Paths.get(filePath));
                         System.out.println("SHA-256 hash: " + filePath);
-                        System.out.println("teste.2");
                         //digital signature
                         try {
                             byte[] data = Files.readAllBytes(Paths.get(filePath));
                             byte[] digitalSignature = generateDigitalSignature(privateKey, data);
-                            System.out.println("teste.3");
                             // Append the digital signature to the file
                             try (FileWriter writer = new FileWriter(filePath, true)) {
                                 writer.write("\nDigital Signature: " + bytesToHex(digitalSignature));
@@ -195,4 +195,9 @@ public class CertificateAuthority {
 
 
 }
+
+
+
+
+
 
