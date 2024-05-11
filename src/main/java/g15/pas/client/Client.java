@@ -166,7 +166,6 @@ public class Client {
 
         do {
             String message = scanner.nextLine();
-
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {

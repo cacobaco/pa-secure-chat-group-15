@@ -1,29 +1,18 @@
 package g15.pas.message.messages;
 
-import java.io.Serializable;
-import java.util.List;
+import g15.pas.message.Message;
 
-public class EncryptedMessage implements Serializable {
-    private final byte[] encryptedMessage;
+import java.util.Arrays;
+
+public class EncryptedMessage extends Message<byte[]> {
     private final byte[] signature;
-    private final List<String> recipients;
-    private final String sender;
-    public EncryptedMessage(byte[] encryptedMessage, byte[] signature, List<String> recipients, String sender) {
-        this.encryptedMessage = encryptedMessage;
+
+    public EncryptedMessage(byte[] encryptedMessage, byte[] signature, String sender, String[] recipients) {
+        super(encryptedMessage, sender, recipients);
         this.signature = signature;
-        this.recipients = recipients;
-        this.sender = sender;
     }
-    public byte[] getEncryptedMessage() {
-        return encryptedMessage;
-    }
+
     public byte[] getSignature() {
         return signature;
-    }
-    public List<String> getRecipients() {
-        return recipients;
-    }
-    public String getSender() {
-        return sender;
     }
 }
