@@ -19,9 +19,7 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * The Client class represents a client in the system.
@@ -35,6 +33,7 @@ public class Client {
     private BigInteger privateDHKey;
     private BigInteger publicDHKey;
     private HashMap<String, BigInteger> SharedSecrets;
+    private final Map<String, Certificate> certificates = new HashMap<>();
 
     private Certificate certificate;
 
@@ -47,6 +46,7 @@ public class Client {
     private ObjectInputStream in;
     private Thread serverListener;
 
+
     /**
      * Constructs a new Client with the specified username, server host, and server port.
      * It generates a key pair and a certificate for the client.
@@ -57,6 +57,7 @@ public class Client {
      * @throws KeyPairCreationException if an error occurs while generating the key pair
      */
     public Client(String username, String serverHost, int serverPort) throws KeyPairCreationException {
+
         this.username = username;
         this.serverHost = serverHost;
         this.serverPort = serverPort;
@@ -268,7 +269,13 @@ public class Client {
         SharedSecrets.put(username, DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getEncryptedKey(), privateKey)), privateDHKey));
     }
 
+    private void sendEncryptedDHKey(String recipient) throws Exception {
+        EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient}); //Get RSA key from certificates
+        out.writeObject(encryptedDHKey);
+    }
+
     private void sendEncryptedDHKey(String[] recipients) throws Exception {
+        // TODO implement
         EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), null), username, recipients); //Get RSA key from certificates
         out.writeObject(encryptedDHKey);
     }
@@ -281,17 +288,47 @@ public class Client {
      */
     private void sendMessage(String message) throws ConnectionException {
         try {
+            System.out.println("1");
             TextMessage textMessage = TextMessage.fromString(message, username);
             textMessage.format();
-            byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
-            byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(username).toByteArray());
-            byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), null ); //Get RSA key from certificates
-            EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, textMessage.getRecipients());
-            out.writeObject(encryptedMessageObject);
-            out.flush();
+            if (textMessage.getRecipients() != null) {
+                List<String> recipients = List.of(textMessage.getRecipients());
+                System.out.println("Mau");
+                for(String recipient : recipients) {
+                    byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
+                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, new byte[16]/*SharedSecrets.get(username).toByteArray()*/);
+                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient) );
+                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
+                    out.writeObject(encryptedMessageObject);
+                    out.flush();
+                }
+            } else {
+                System.out.println("Bom");
+                Set<String> clients = certificates.keySet();
+                for (String username : clients) {
+                    byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
+                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, new byte[16]/*SharedSecrets.get(username).toByteArray()*/);
+                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(username) );
+                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{username});
+                    out.writeObject(encryptedMessageObject);
+                    out.flush();
+                }
+
+            }
+
         } catch (Exception e) {
             throw new ConnectionException(e);
         }
+    }
+
+    public PublicKey getRecipientPublicKey(String recipientUsername) {
+
+        Certificate recipientCertificate = certificates.get(recipientUsername);
+        if (recipientCertificate == null) {
+            throw new IllegalArgumentException("Não existe nenhum certificado para o cliente: " + recipientUsername);
+        }
+
+        return recipientCertificate.getPublicKey();
     }
 
     /**
@@ -332,7 +369,6 @@ public class Client {
      */
     private class ServerListener implements Runnable {
 
-        private final Map<String, Certificate> certificates = new HashMap<>();
 
         @Override
         public void run() {
@@ -404,7 +440,7 @@ public class Client {
         }
 
         private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
-            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), SharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
+            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), new byte[16]/*SharedSecrets.get(EncryptedMessage.getSender()).toByteArray()*/);
             byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
             if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
                 throw new RuntimeException("The message has been tampered with.");
