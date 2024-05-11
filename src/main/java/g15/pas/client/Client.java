@@ -269,7 +269,7 @@ public class Client {
     }
 
     private void sendEncryptedDHKey(String[] recipients) throws Exception {
-        EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), null), username, recipients);
+        EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), null), username, recipients); //Get RSA key from certificates
         out.writeObject(encryptedDHKey);
     }
 
@@ -280,8 +280,18 @@ public class Client {
      * @throws ConnectionException if an error occurs while sending the message
      */
     private void sendMessage(String message) throws ConnectionException {
-        TextMessage textMessageObject = TextMessage.fromString(message, username);
-        sendMessage(textMessageObject);
+        try {
+            TextMessage textMessage = TextMessage.fromString(message, username);
+            textMessage.format();
+            byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
+            byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(username).toByteArray());
+            byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), null ); //Get RSA key from certificates
+            EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, textMessage.getRecipients());
+            out.writeObject(encryptedMessageObject);
+            out.flush();
+        } catch (Exception e) {
+            throw new ConnectionException(e);
+        }
     }
 
     /**
