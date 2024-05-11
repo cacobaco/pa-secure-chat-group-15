@@ -10,13 +10,12 @@ import g15.pas.message.messages.BooleanMessage;
 import g15.pas.message.messages.CertificateMessage;
 import g15.pas.message.messages.CommandMessage;
 import g15.pas.message.messages.TextMessage;
-import g15.pas.utils.Certificate;
-import g15.pas.utils.Encryption;
-import g15.pas.utils.Logger;
+import g15.pas.utils.*;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.math.BigInteger;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -35,8 +34,11 @@ public class Client {
 
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
+    private BigInteger privateDHKey;
+    private BigInteger publicDHKey;
+    private HashMap<String, BigInteger> SharedSecrets;
 
-    private final Certificate certificate;
+    private Certificate certificate;
 
     private final String username;
     private final String serverHost;
@@ -68,10 +70,20 @@ public class Client {
             keyPair = Encryption.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
             throw new KeyPairCreationException(e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
         Logger.log("Par de chaves gerado com sucesso.");
+        try {
+            this.privateDHKey = DiffieHellman.generatePrivateKey();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return;
+        }
+        this.publicDHKey = DiffieHellman.generatePublicKey(this.privateDHKey);
+        this.SharedSecrets = new HashMap<String, BigInteger>();
 
         // Create certificate
         Logger.log("A gerar certificado...");
@@ -253,6 +265,15 @@ public class Client {
     private void requestCertificates() throws ConnectionException {
         CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_CERTIFICATE, username);
         sendMessage(commandMessage);
+    }
+
+    private void receiveEncryptedDHKey(EncryptedDHKey encryptedDHKey) throws Exception {
+        SharedSecrets.put(username, DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getEncryptedKey(), privateKey)), privateDHKey));
+    }
+
+    private void sendEncryptedDHKey(String[] recipients) throws Exception {
+        EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), null), username, recipients);
+        out.writeObject(encryptedDHKey);
     }
 
     /**
