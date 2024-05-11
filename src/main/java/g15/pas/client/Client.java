@@ -6,10 +6,7 @@ import g15.pas.exceptions.InvalidCommandException;
 import g15.pas.exceptions.KeyPairCreationException;
 import g15.pas.message.Message;
 import g15.pas.message.enums.CommandType;
-import g15.pas.message.messages.BooleanMessage;
-import g15.pas.message.messages.CertificateMessage;
-import g15.pas.message.messages.CommandMessage;
-import g15.pas.message.messages.TextMessage;
+import g15.pas.message.messages.*;
 import g15.pas.utils.*;
 
 import java.io.IOException;
@@ -17,6 +14,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -335,13 +333,15 @@ public class Client {
                 } catch (IOException | ClassNotFoundException e) {
                     Logger.error("Ocorreu um erro ao receber uma mensagem: " + e.getMessage());
                     break;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
             }
 
             disconnectFromServer();
         }
 
-        private void handleMessage(Message message) {
+        private void handleMessage(Message message) throws Exception {
             if (message instanceof CertificateMessage certificateMessage) {
                 try {
                     handleCertificateMessage(certificateMessage);
@@ -356,6 +356,8 @@ public class Client {
                 }
             } else if (message instanceof TextMessage textMessage) {
                 handleTextMessage(textMessage);
+            } else if (message instanceof EncryptedMessage encryptedMessage) {
+                handleEncryptedMessage(encryptedMessage);
             } else {
                 Logger.error("Mensagem inválida recebida: %s" + message.getClass().getSimpleName());
             }
@@ -389,6 +391,16 @@ public class Client {
         private void handleTextMessage(TextMessage textMessage) {
             textMessage.format();
             Logger.log(textMessage.getContent());
+        }
+
+        private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
+            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), SharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
+            byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
+            if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
+                throw new RuntimeException("The message has been tampered with.");
+            }
+            String messageString = new String(decryptedMessage, StandardCharsets.UTF_8);
+            Logger.log(messageString);
         }
 
         /**
