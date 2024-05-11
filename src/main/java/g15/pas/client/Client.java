@@ -4,13 +4,6 @@ import g15.pas.exceptions.ConnectionException;
 import g15.pas.exceptions.InvalidCertificateException;
 import g15.pas.exceptions.InvalidCommandException;
 import g15.pas.exceptions.KeyPairCreationException;
-import g15.pas.utils.Certificate;
-import g15.pas.utils.DiffieHellman;
-import g15.pas.utils.EncryptedMessage;
-import g15.pas.utils.Encryption;
-import g15.pas.utils.Integrity;
-import g15.pas.utils.Logger;
-import g15.pas.utils.Message;
 import g15.pas.message.Message;
 import g15.pas.message.enums.CommandType;
 import g15.pas.message.messages.BooleanMessage;
@@ -18,18 +11,18 @@ import g15.pas.message.messages.CertificateMessage;
 import g15.pas.message.messages.CommandMessage;
 import g15.pas.message.messages.TextMessage;
 import g15.pas.utils.Certificate;
+import g15.pas.utils.Encryption;
+import g15.pas.utils.Logger;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.math.BigInteger;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -42,10 +35,8 @@ public class Client {
 
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
-    private BigInteger privateDHKey;
-    private BigInteger publicDHKey;
-    private HashMap<String, BigInteger> SharedSecrets;
-    private Certificate certificate;
+
+    private final Certificate certificate;
 
     private final String username;
     private final String serverHost;
@@ -55,8 +46,6 @@ public class Client {
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private Thread serverListener;
-
-
 
     /**
      * Constructs a new Client with the specified username, server host, and server port.
@@ -82,17 +71,7 @@ public class Client {
         }
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
-        System.out.println("Par de chaves gerado com sucesso.");
-
-        try {
-            this.privateDHKey = DiffieHellman.generatePrivateKey();
-        } catch (NoSuchAlgorithmException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return;
-        }
-        this.publicDHKey = DiffieHellman.generatePublicKey(this.privateDHKey);
-        this.SharedSecrets = new HashMap<String, BigInteger>();
+        Logger.log("Par de chaves gerado com sucesso.");
 
         // Create certificate
         Logger.log("A gerar certificado...");
@@ -271,14 +250,6 @@ public class Client {
         }
     }
 
-    private void receiveEncryptedDHKey(EncryptedDHKey encryptedDHKey) throws Exception {
-        SharedSecrets.put(username, DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getEncryptedKey(), privateKey)), privateDHKey));
-    }
-
-    private void sendEncryptedDHKey(String[] recipients) throws Exception {
-        EncryptedDHKey encryptedDHKey = new EncryptedDHKey(Encryption.encryptRSA(publicDHKey.toByteArray(), null), username, recipients);
-        out.writeObject(encryptedDHKey);
-
     private void requestCertificates() throws ConnectionException {
         CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_CERTIFICATE, username);
         sendMessage(commandMessage);
@@ -299,23 +270,14 @@ public class Client {
      * Sends a message to the server.
      *
      * @param message the message to send
-     * @return true if the message was sent successfully, false otherwise
+     * @throws ConnectionException if an error occurs while sending the message
      */
-    private boolean sendMessage(String message) {
+    private void sendMessage(Message message) throws ConnectionException {
         try {
-            Message messageObject = Message.fromString(message, username);
-            // Encrypt the message
-            List<String> recipients = Arrays.asList(messageObject.getRecipients());
-            byte[] encryptedMessage = Encryption.encryptAES(messageObject.getContent().getBytes(), SharedSecrets.get(recipients.get(0)).toByteArray());
-            byte[] signature = Encryption.encryptRSA(messageObject.getContent().getBytes(), privateKey);
-            // Store the encrypted message and the signature in an EncryptedMessage object
-            EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, recipients, username);
-
-            out.writeObject(encryptedMessageObject);
-            return true;
-        } catch (Exception e) {
-            Logger.error("Ocorreu um erro ao enviar uma mensagem: " + e.getMessage());
-            return false;
+            out.writeObject(message);
+            out.flush();
+        } catch (IOException e) {
+            throw new ConnectionException(e);
         }
     }
 
@@ -337,8 +299,6 @@ public class Client {
         }
     }
 
-
-
     /**
      * The ServerListener class listens for messages from the server and handles them.
      */
@@ -350,23 +310,10 @@ public class Client {
         public void run() {
             while (true) {
                 try {
-                    Object obj = in.readObject();
-                    if (obj instanceof EncryptedMessage messageObj) {
-                        byte[] decryptedMessage = Encryption.decryptAES(messageObj.getEncryptedMessage(), SharedSecrets.get(messageObj.getSender()).toByteArray());
-                        byte[] decryptedSignature = Encryption.decryptRSA(messageObj.getSignature(), privateKey);
-                        if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
-                            throw new RuntimeException("The message has been tampered with.");
-                        }
-                        System.out.println(new String(decryptedMessage));
-                    } else if (obj instanceof Message messageObj) {
-                        handleMessage(messageObj);
-                        Logger.log(messageObj.getContent());
-                    } else if (obj instanceof EncryptedDHKey encryptedDHKey) {
-                        receiveEncryptedDHKey(encryptedDHKey);
-                        sendEncryptedDHKey(new String[]{encryptedDHKey.getSender()});
-                    }
-                } catch (Exception e) {
-                    Logger.error("Ocorreu um erro ao receber uma mensagem do servidor: " + e.getMessage());
+                    Message message = (Message) in.readObject();
+                    handleMessage(message);
+                } catch (IOException | ClassNotFoundException e) {
+                    Logger.error("Ocorreu um erro ao receber uma mensagem: " + e.getMessage());
                     break;
                 }
             }
@@ -429,16 +376,6 @@ public class Client {
          */
         private void validateCertificate(Certificate certificate) {
             // TODO implement
-        }
-
-        /**
-         * Sends the public key to the client.
-         *
-         * @param publicKey the public key to send
-         * @throws IOException if an I/O error occurs when sending the public key
-         */
-        private void sendPublicKey(BigInteger publicKey) throws IOException {
-            out.writeObject(publicKey);
         }
 
     }
