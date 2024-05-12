@@ -44,7 +44,16 @@ public class CertificateReader {
             return certificate;
         }
 
-        String encodedSignature = lines[4];
+        String encodedExpirationDate = lines[4];
+        byte[] expirationDateBytes = Base64.getDecoder().decode(encodedExpirationDate);
+        Long expirationDate = Long.parseLong(new String(expirationDateBytes));
+        certificate.setExpirationDate(expirationDate);
+
+        if (lines.length == 6) {
+            return certificate;
+        }
+
+        String encodedSignature = lines[5];
         byte[] signature = Base64.getDecoder().decode(encodedSignature);
 
         certificate.setSignature(signature);

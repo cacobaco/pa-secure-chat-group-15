@@ -23,6 +23,7 @@ public class Config {
     public static final int CA_PORT;
     public static final String CA_PATH;
     public static final String CA_CRL_PATH;
+    public static long CA_CERTIFICATE_VALIDITY;
 
     static {
         loadProperties();
@@ -38,6 +39,7 @@ public class Config {
         CA_PORT = Integer.parseUnsignedInt(properties.getProperty("ca.port", "8100"));
         CA_PATH = properties.getProperty("ca.path", "secure/certificates/");
         CA_CRL_PATH = properties.getProperty("ca.crl.path", "secure/crl/");
+        CA_CERTIFICATE_VALIDITY = Long.parseUnsignedLong(properties.getProperty("ca.certificate.validity", "1"));
     }
 
     /**
