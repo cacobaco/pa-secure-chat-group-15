@@ -18,7 +18,7 @@ public class CertificateWriter {
         writer.close();
     }
 
-    private static String convertToPEM(Certificate certificate) {
+    static String convertToPEM(Certificate certificate) {
         PublicKey publicKey = certificate.getPublicKey();
         String username = certificate.getUsername();
         byte[] signature = certificate.getSignature();
