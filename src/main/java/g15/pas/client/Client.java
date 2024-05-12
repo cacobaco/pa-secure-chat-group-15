@@ -454,8 +454,8 @@ public class Client {
                     continue;
                 }
 
-                byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), recipientPublicKey);
-                EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
+                byte[] mac = Integrity.generateMAC(messageBytes, sharedSecrets.get(recipient).toByteArray());
+                EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, mac, username, new String[]{recipient});
                 out.writeObject(encryptedMessageObject);
                 out.flush();
             }
@@ -614,14 +614,15 @@ public class Client {
          */
         private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
             byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), sharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
-            byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
-
-            if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
-                throw new RuntimeException("The message has been tampered with.");
+            byte[] mac = Integrity.generateMAC(decryptedMessage, sharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
+            // Verifies the integrity of the message
+            boolean isIntegrity = Integrity.verifyMAC(mac, EncryptedMessage.getMac());
+            if (!isIntegrity) {
+                throw new RuntimeException("Integrity violation");
+            } else {
+                String messageString = new String(decryptedMessage, StandardCharsets.UTF_8);
+                Logger.log(messageString);
             }
-
-            String messageString = new String(decryptedMessage, StandardCharsets.UTF_8);
-            Logger.log(messageString);
         }
 
         private void handleInfoMessage(InfoMessage infoMessage) throws InvalidInfoException {
