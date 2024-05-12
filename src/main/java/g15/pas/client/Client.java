@@ -161,20 +161,25 @@ public class Client {
         serverListener = new Thread(new ServerListener());
         serverListener.start();
 
-        try {
-            System.out.println(certificates.keySet());
-            Set<String> recipients = certificates.keySet();
-            sendEncryptedDHKey(recipients.toArray(new String[recipients.size()]));
-        } catch (Exception e) {
-            Logger.error("Ocorreu um erro ao enviar chave DiffieHellman: " + e.getMessage());
-            disconnectFromServer();
-            return;
-        }
+
 
         Scanner scanner = new Scanner(System.in);
 
         do {
             String message = scanner.nextLine();
+            try {
+                Set<String> recipients = certificates.keySet();
+                for (String recipient : recipients){
+                    if (recipient.equals(username)) continue;
+                    else if (SharedSecrets.containsKey(recipient)) continue;
+                    sendEncryptedDHKey(recipient);
+                    Thread.sleep(100);
+                }
+            } catch (Exception e) {
+                Logger.error("Ocorreu um erro ao enviar chave DiffieHellman: " + e.getMessage());
+                disconnectFromServer();
+                return;
+            }
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {
@@ -276,7 +281,8 @@ public class Client {
     }
 
     private void receiveEncryptedDHKey(EncryptedDHKeyMessage encryptedDHKey) throws Exception {
-        SharedSecrets.put(username, DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getContent(), privateKey)), privateDHKey));
+        if (SharedSecrets.containsKey(encryptedDHKey.getSender())) return;
+        SharedSecrets.put(encryptedDHKey.getSender(), DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getContent(), privateKey)), privateDHKey));
     }
 
     private void sendEncryptedDHKey(String recipient) throws Exception {
@@ -285,11 +291,9 @@ public class Client {
     }
 
     private void sendEncryptedDHKey(String[] recipients) throws Exception {
-        System.out.println("1");
         List<String> recipientsList = List.of(recipients);
-        System.out.println(recipientsList);
         for(String recipient : recipientsList) {
-            System.out.println("Sending DH Key to: " + recipient);
+            if (SharedSecrets.containsKey(recipient)) continue;
             EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
             out.writeObject(encryptedDHKey);
         }
@@ -309,7 +313,7 @@ public class Client {
                 List<String> recipients = List.of(textMessage.getRecipients());
                 for(String recipient : recipients) {
                     byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(username).toByteArray());
+                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(recipient).toByteArray());
                     byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient) );
                     EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
                     out.writeObject(encryptedMessageObject);
@@ -317,13 +321,15 @@ public class Client {
                 }
             } else {
                 Set<String> clients = certificates.keySet();
-                for (String username : clients) {
+                for (String recipient : clients) {
+                    if (!recipient.equals(username)){
                     byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(username).toByteArray());
-                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(username) );
-                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{username});
+                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(recipient).toByteArray());
+                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient) );
+                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
                     out.writeObject(encryptedMessageObject);
                     out.flush();
+                    }
                 }
 
             }
@@ -424,8 +430,10 @@ public class Client {
         }
 
         private void handleEncryptedDHKeyMessage(EncryptedDHKeyMessage message) throws Exception {
+            if (!SharedSecrets.containsKey(message.getSender())) {
+                sendEncryptedDHKey(message.getSender());
+            }
             receiveEncryptedDHKey(message);
-            sendEncryptedDHKey(message.getSender());
         }
         private void handleCertificateMessage(CertificateMessage certificateMessage) throws InvalidCertificateException {
             if (username.equals(certificateMessage.getSender())) return;
@@ -458,7 +466,7 @@ public class Client {
         }
 
         private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
-            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), new byte[16]/*SharedSecrets.get(EncryptedMessage.getSender()).toByteArray()*/);
+            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), SharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
             byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
             if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
                 throw new RuntimeException("The message has been tampered with.");
