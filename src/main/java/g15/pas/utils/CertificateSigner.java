@@ -36,7 +36,7 @@ public class CertificateSigner {
         return signatureInstance.verify(certificate.getSignature());
     }
 
-    private static byte[] serializeCertificate(Certificate certificate) throws IOException {
+    static byte[] serializeCertificate(Certificate certificate) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
 
@@ -55,7 +55,7 @@ public class CertificateSigner {
         return certificateBytes;
     }
 
-    private static byte[] hashCertificate(byte[] certificateBytes) throws NoSuchAlgorithmException {
+    static byte[] hashCertificate(byte[] certificateBytes) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return digest.digest(certificateBytes);
     }
