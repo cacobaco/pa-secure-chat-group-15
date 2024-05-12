@@ -19,7 +19,7 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-public class CertificateAuthority {
+public abstract class CertificateAuthority {
 
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
@@ -107,6 +107,8 @@ public class CertificateAuthority {
             Logger.error("Ocorreu um erro ao criar handler para o cliente: " + e.getMessage());
         }
     }
+
+    public abstract void connect();
 
     /**
      * Represents a client connection to the Certificate Authority.

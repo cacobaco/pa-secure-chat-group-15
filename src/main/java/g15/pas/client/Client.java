@@ -409,7 +409,7 @@ public class Client {
      * @param message the message to send
      * @throws ConnectionException if an error occurs while sending the message
      */
-    private void sendMessage(String message) throws ConnectionException {
+    public void sendMessage(String message) throws ConnectionException {
         try {
             TextMessage textMessage = TextMessage.fromString(message, username);
             textMessage.format();

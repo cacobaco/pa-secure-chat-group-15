@@ -15,7 +15,12 @@ public class MainCA {
 
     private static void startCA() {
         try {
-            CertificateAuthority ca = new CertificateAuthority(Config.CA_PORT);
+            CertificateAuthority ca = new CertificateAuthority(Config.CA_PORT) {
+                @Override
+                public void connect() {
+
+                }
+            };
             ca.start();
         } catch (IOException | KeyPairCreationException e) {
             Logger.error("Ocorreu um erro ao criar a CA: " + e.getMessage());
