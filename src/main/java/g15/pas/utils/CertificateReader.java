@@ -34,15 +34,18 @@ public class CertificateReader {
         byte[] keyBytes = Base64.getDecoder().decode(encodedKey);
         PublicKey publicKey = Encryption.convertBytesToPublicKey(keyBytes);
 
+        Certificate certificate = new Certificate(username, publicKey);
+
         if (lines.length == 4) {
-            return new Certificate(username, publicKey);
+            return certificate;
         }
 
         String encodedSignature = lines[3];
-
         byte[] signature = Base64.getDecoder().decode(encodedSignature);
 
-        return new Certificate(username, publicKey, signature);
+        certificate.setSignature(signature);
+
+        return certificate;
     }
 
 }

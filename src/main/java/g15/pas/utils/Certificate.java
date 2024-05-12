@@ -2,6 +2,7 @@ package g15.pas.utils;
 
 import java.io.Serializable;
 import java.security.PublicKey;
+import java.util.Date;
 
 /**
  * This class represents a Certificate which implements Serializable.
@@ -11,6 +12,7 @@ public class Certificate implements Serializable {
 
     private final String username;
     private final PublicKey publicKey;
+    private Date expirationDate;
     private byte[] signature;
 
     /**
@@ -24,13 +26,6 @@ public class Certificate implements Serializable {
         this.publicKey = publicKey;
     }
 
-    /**
-     * Constructor for Certificate with username, publicKey and signature.
-     *
-     * @param username  The username associated with the certificate
-     * @param publicKey The public key associated with the certificate
-     * @param signature The signature associated with the certificate
-     */
     public Certificate(String username, PublicKey publicKey, byte[] signature) {
         this.username = username;
         this.publicKey = publicKey;
@@ -71,6 +66,24 @@ public class Certificate implements Serializable {
      */
     public void setSignature(byte[] signature) {
         this.signature = signature;
+    }
+
+    /**
+     * Getter for expirationDate.
+     *
+     * @return The expiration date associated with the certificate
+     */
+    public Date getExpirationDate() {
+        return expirationDate;
+    }
+
+    /**
+     * Setter for expirationDate.
+     *
+     * @param expirationDate The expiration date to be set
+     */
+    public void setExpirationDate(Date expirationDate) {
+        this.expirationDate = expirationDate;
     }
 
 }

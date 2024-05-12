@@ -16,7 +16,9 @@ public class CertificateSigner {
         signatureInstance.update(hash);
         byte[] signature = signatureInstance.sign();
 
-        return new Certificate(certificate.getUsername(), certificate.getPublicKey(), signature);
+        certificate.setSignature(signature);
+
+        return certificate;
     }
 
     public static boolean verifyCertificate(Certificate certificate, PublicKey publicKey) throws Exception {
