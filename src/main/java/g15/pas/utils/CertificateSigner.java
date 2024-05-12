@@ -4,10 +4,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.security.*;
+import java.util.Date;
 
 public class CertificateSigner {
 
     public static Certificate signCertificate(Certificate certificate, PrivateKey privateKey) throws Exception {
+        long expirationDate = (new Date()).getTime() + (Config.CA_CERTIFICATE_VALIDITY * 60 * 1000);
+        certificate.setExpirationDate(expirationDate);
+
         byte[] certificateBytes = serializeCertificate(certificate);
         byte[] hash = hashCertificate(certificateBytes);
 
@@ -39,6 +43,7 @@ public class CertificateSigner {
         objectOutputStream.writeObject(certificate.getSerialNumber());
         objectOutputStream.writeObject(certificate.getUsername());
         objectOutputStream.writeObject(certificate.getPublicKey());
+        objectOutputStream.writeObject(certificate.getExpirationDate());
 
         objectOutputStream.flush();
         objectOutputStream.close();

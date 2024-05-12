@@ -11,7 +11,7 @@ public abstract class Message<T extends Serializable> implements Serializable {
 
     private T content; // The content of the message
     private final String sender; // The sender of the message
-    private final String[] recipients; // The recipients of the message
+    private String[] recipients; // The recipients of the message
 
     /**
      * Constructor for Message with only content.
@@ -83,6 +83,15 @@ public abstract class Message<T extends Serializable> implements Serializable {
      */
     public String[] getRecipients() {
         return recipients;
+    }
+
+    /**
+     * Setter for recipients.
+     *
+     * @param recipients The recipients to set
+     */
+    public void setRecipients(String[] recipients) {
+        this.recipients = recipients;
     }
 
 }
