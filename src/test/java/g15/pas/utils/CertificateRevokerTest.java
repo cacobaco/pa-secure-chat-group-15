@@ -8,10 +8,10 @@ import java.security.PublicKey;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CertificateTest {
+public class CertificateRevokerTest {
 
     @Test
-    public void shouldCreateCertificateWithRandomSerialNumber() {
+    public void shouldRevokeCertificate() {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
@@ -21,16 +21,16 @@ public class CertificateTest {
             String username = "example_user";
             Certificate certificate = new Certificate(username, publicKey);
 
-            assertNotNull(certificate.getSerialNumber());
-            assertEquals(username, certificate.getUsername());
-            assertEquals(publicKey, certificate.getPublicKey());
+            CertificateRevoker.revokeCertificate(certificate);
+
+            assertTrue(CertificateRevoker.isRevoked(certificate));
         } catch (Exception e) {
             fail("Exception thrown: " + e.getMessage());
         }
     }
 
     @Test
-    public void shouldCreateCertificateWithSpecificSerialNumber() {
+    public void shouldNotBeRevokedIfNotInCRL() {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
@@ -38,19 +38,36 @@ public class CertificateTest {
             PublicKey publicKey = keyPair.getPublic();
 
             String username = "example_user";
-            String serialNumber = "1234567890";
-            Certificate certificate = new Certificate(serialNumber, username, publicKey);
+            Certificate certificate = new Certificate(username, publicKey);
 
-            assertEquals(serialNumber, certificate.getSerialNumber());
-            assertEquals(username, certificate.getUsername());
-            assertEquals(publicKey, certificate.getPublicKey());
+            assertFalse(CertificateRevoker.isRevoked(certificate));
         } catch (Exception e) {
             fail("Exception thrown: " + e.getMessage());
         }
     }
 
     @Test
-    public void shouldSetAndGetExpirationDate() {
+    public void shouldBeExpiredIfPastExpirationDate() {
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            PublicKey publicKey = keyPair.getPublic();
+
+            String username = "example_user";
+            Certificate certificate = new Certificate(username, publicKey);
+
+            Long expirationDate = System.currentTimeMillis() - 100000;
+            certificate.setExpirationDate(expirationDate);
+
+            assertTrue(CertificateRevoker.isExpired(certificate));
+        } catch (Exception e) {
+            fail("Exception thrown: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldNotBeExpiredIfBeforeExpirationDate() {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
@@ -63,30 +80,9 @@ public class CertificateTest {
             Long expirationDate = System.currentTimeMillis() + 100000;
             certificate.setExpirationDate(expirationDate);
 
-            assertEquals(expirationDate, certificate.getExpirationDate());
+            assertFalse(CertificateRevoker.isExpired(certificate));
         } catch (Exception e) {
             fail("Exception thrown: " + e.getMessage());
         }
     }
-
-    @Test
-    public void shouldSetAndGetSignature() {
-        try {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-            keyPairGenerator.initialize(2048);
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            PublicKey publicKey = keyPair.getPublic();
-
-            String username = "example_user";
-            Certificate certificate = new Certificate(username, publicKey);
-
-            byte[] signature = new byte[]{1, 2, 3, 4, 5};
-            certificate.setSignature(signature);
-
-            assertArrayEquals(signature, certificate.getSignature());
-        } catch (Exception e) {
-            fail("Exception thrown: " + e.getMessage());
-        }
-    }
-
 }

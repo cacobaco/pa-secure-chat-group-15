@@ -5,8 +5,18 @@ import java.io.FileReader;
 import java.security.PublicKey;
 import java.util.Base64;
 
+/**
+ * This class provides utility methods for reading a Certificate from a file.
+ */
 public class CertificateReader {
 
+    /**
+     * Reads a Certificate from a file.
+     *
+     * @param filePath the path to the file
+     * @return the read Certificate
+     * @throws Exception if an error occurs during reading
+     */
     public static Certificate readCertificate(String filePath) throws Exception {
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
 
@@ -22,6 +32,13 @@ public class CertificateReader {
         return convertFromPEM(pemContent.toString());
     }
 
+    /**
+     * Converts a PEM content string to a Certificate.
+     *
+     * @param pemContent the PEM content string
+     * @return the converted Certificate
+     * @throws Exception if an error occurs during conversion
+     */
     private static Certificate convertFromPEM(String pemContent) throws Exception {
         String[] lines = pemContent.split("\n");
 
@@ -30,7 +47,7 @@ public class CertificateReader {
         String encodedKey = lines[3];
 
         byte[] serialNumberBytes = Base64.getDecoder().decode(encodedSerialNumber);
-        int serialNumber = Integer.parseInt(new String(serialNumberBytes));
+        String serialNumber = new String(serialNumberBytes);
 
         byte[] usernameBytes = Base64.getDecoder().decode(encodedUsername);
         String username = new String(usernameBytes);
@@ -44,7 +61,16 @@ public class CertificateReader {
             return certificate;
         }
 
-        String encodedSignature = lines[4];
+        String encodedExpirationDate = lines[4];
+        byte[] expirationDateBytes = Base64.getDecoder().decode(encodedExpirationDate);
+        Long expirationDate = Long.parseLong(new String(expirationDateBytes));
+        certificate.setExpirationDate(expirationDate);
+
+        if (lines.length == 6) {
+            return certificate;
+        }
+
+        String encodedSignature = lines[5];
         byte[] signature = Base64.getDecoder().decode(encodedSignature);
 
         certificate.setSignature(signature);

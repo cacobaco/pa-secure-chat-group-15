@@ -8,48 +8,52 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * This class extends the Message class with String as the type parameter.
- * It represents a text message that can be sent from a sender to multiple recipients.
+ * This class represents a text message that extends the Message class.
+ * The message content is of type String.
+ * It provides methods to create a TextMessage from a string and to format the message content.
  */
 public class TextMessage extends Message<String> {
 
     /**
-     * Constructor for TextMessage with only content.
+     * Constructs a new TextMessage with the specified content.
+     * The sender and recipients are set to null.
      *
-     * @param content The content of the message
+     * @param content the content of the message
      */
     public TextMessage(String content) {
         super(content);
     }
 
     /**
-     * Constructor for TextMessage with content and sender.
+     * Constructs a new TextMessage with the specified content and sender.
+     * The recipients are set to null.
      *
-     * @param content The content of the message
-     * @param sender  The sender of the message
+     * @param content the content of the message
+     * @param sender  the sender of the message
      */
     public TextMessage(String content, String sender) {
         super(content, sender);
     }
 
     /**
-     * Constructor for TextMessage with content, sender, and recipients.
+     * Constructs a new TextMessage with the specified content, sender, and recipients.
      *
-     * @param content    The content of the message
-     * @param sender     The sender of the message
-     * @param recipients The recipients of the message
+     * @param content    the content of the message
+     * @param sender     the sender of the message
+     * @param recipients the recipients of the message
      */
     public TextMessage(String content, String sender, String[] recipients) {
         super(content, sender, recipients);
     }
 
     /**
-     * This method creates a TextMessage from a string.
-     * If the content starts with "@", it treats the following words as recipients until a word without "@" is found.
+     * Creates a new TextMessage from a string.
+     * If the content starts with "@", it is split into parts and the recipients are extracted.
+     * The remaining parts are joined to form the new content.
      *
-     * @param content The content of the message
-     * @param sender  The sender of the message
-     * @return A new TextMessage instance
+     * @param content the content of the message
+     * @param sender  the sender of the message
+     * @return a new TextMessage with the specified content, sender, and recipients
      */
     public static TextMessage fromString(String content, String sender) {
         if (!content.startsWith("@")) {
@@ -82,7 +86,9 @@ public class TextMessage extends Message<String> {
     }
 
     /**
-     * This method formats the content of the message by adding a timestamp and the sender's name (if present).
+     * Formats the content of the message.
+     * If the sender is null, the content is prefixed with the current date.
+     * If the sender is not null, the content is prefixed with the current date and the sender.
      */
     public void format() {
         Date date = new Date();

@@ -3,20 +3,23 @@ package g15.pas.message;
 import java.io.Serializable;
 
 /**
- * This is an abstract class for a Message that implements Serializable.
- * The Message class is generic and can accept any type that extends Serializable.
- * It has three properties: content, sender, and recipients.
+ * This abstract class represents a message that can be sent between users.
+ * The message contains content of type T, a sender, and an array of recipients.
+ * The content, sender, and recipients can be set and retrieved using the provided methods.
+ *
+ * @param <T> the type of the content of the message
  */
 public abstract class Message<T extends Serializable> implements Serializable {
 
-    private T content; // The content of the message
-    private final String sender; // The sender of the message
-    private final String[] recipients; // The recipients of the message
+    private T content;
+    private final String sender;
+    private String[] recipients;
 
     /**
-     * Constructor for Message with only content.
+     * Constructs a new Message with the specified content.
+     * The sender and recipients are set to null.
      *
-     * @param content The content of the message
+     * @param content the content of the message
      */
     public Message(T content) {
         this.content = content;
@@ -25,10 +28,11 @@ public abstract class Message<T extends Serializable> implements Serializable {
     }
 
     /**
-     * Constructor for Message with content and sender.
+     * Constructs a new Message with the specified content and sender.
+     * The recipients are set to null.
      *
-     * @param content The content of the message
-     * @param sender  The sender of the message
+     * @param content the content of the message
+     * @param sender  the sender of the message
      */
     public Message(T content, String sender) {
         this.content = content;
@@ -37,11 +41,11 @@ public abstract class Message<T extends Serializable> implements Serializable {
     }
 
     /**
-     * Constructor for Message with content, sender, and recipients.
+     * Constructs a new Message with the specified content, sender, and recipients.
      *
-     * @param content    The content of the message
-     * @param sender     The sender of the message
-     * @param recipients The recipients of the message
+     * @param content    the content of the message
+     * @param sender     the sender of the message
+     * @param recipients the recipients of the message
      */
     public Message(T content, String sender, String[] recipients) {
         this.content = content;
@@ -50,39 +54,48 @@ public abstract class Message<T extends Serializable> implements Serializable {
     }
 
     /**
-     * Setter for content.
+     * Sets the content of the message.
      *
-     * @param content The content to set
+     * @param content the new content of the message
      */
     public void setContent(T content) {
         this.content = content;
     }
 
     /**
-     * Getter for content.
+     * Returns the content of the message.
      *
-     * @return The content of the message
+     * @return the content of the message
      */
     public T getContent() {
         return content;
     }
 
     /**
-     * Getter for sender.
+     * Returns the sender of the message.
      *
-     * @return The sender of the message
+     * @return the sender of the message
      */
     public String getSender() {
         return sender;
     }
 
     /**
-     * Getter for recipients.
+     * Returns the recipients of the message.
      *
-     * @return The recipients of the message
+     * @return the recipients of the message
      */
     public String[] getRecipients() {
         return recipients;
+    }
+
+    /**
+     * Sets the recipients of the message.
+     *
+     * @param recipients the new recipients of the message
+     */
+    public void setRecipients(String[] recipients) {
+        this.recipients = recipients;
     }
 
 }

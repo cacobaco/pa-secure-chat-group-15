@@ -6,7 +6,8 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * This class is responsible for loading and providing access to the properties defined in the configuration file.
+ * This class provides a centralized location for configuration properties.
+ * It reads properties from a file and provides static access to these properties.
  */
 public class Config {
 
@@ -22,6 +23,8 @@ public class Config {
     public static final String CA_HOST;
     public static final int CA_PORT;
     public static final String CA_PATH;
+    public static final String CA_CRL_PATH;
+    public static long CA_CERTIFICATE_VALIDITY;
 
     static {
         loadProperties();
@@ -35,11 +38,14 @@ public class Config {
 
         CA_HOST = properties.getProperty("ca.host", "localhost");
         CA_PORT = Integer.parseUnsignedInt(properties.getProperty("ca.port", "8100"));
-        CA_PATH = properties.getProperty("ca.path", "ca");
+        CA_PATH = properties.getProperty("ca.path", "secure/certificates/");
+        CA_CRL_PATH = properties.getProperty("ca.crl.path", "secure/crl/");
+        CA_CERTIFICATE_VALIDITY = Long.parseUnsignedLong(properties.getProperty("ca.certificate.validity", "1"));
     }
 
     /**
-     * Loads the properties from the configuration file into the Properties object.
+     * Loads properties from a file.
+     * If an error occurs during loading, it logs the error message.
      */
     private static void loadProperties() {
         try (InputStream inputStream = new FileInputStream(Constants.CONFIG_FILE_PATH)) {
