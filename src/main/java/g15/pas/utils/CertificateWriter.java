@@ -22,6 +22,7 @@ public class CertificateWriter {
         String serialNumber = certificate.getSerialNumber();
         PublicKey publicKey = certificate.getPublicKey();
         String username = certificate.getUsername();
+        Long expirationDate = certificate.getExpirationDate();
         byte[] signature = certificate.getSignature();
 
         byte[] serialNumberBytes = serialNumber.getBytes();
@@ -33,22 +34,25 @@ public class CertificateWriter {
         byte[] usernameBytes = username.getBytes();
         String encodedUsername = Base64.getEncoder().encodeToString(usernameBytes);
 
-        if (signature == null) {
-            return "-----BEGIN CERTIFICATE-----\n" +
-                    encodedSerialNumber + "\n" +
-                    encodedUsername + "\n" +
-                    encodedKey + "\n" +
-                    "-----END CERTIFICATE-----";
+        StringBuilder pemContent = new StringBuilder();
+        pemContent.append("-----BEGIN CERTIFICATE-----\n");
+        pemContent.append(encodedSerialNumber).append("\n");
+        pemContent.append(encodedUsername).append("\n");
+        pemContent.append(encodedKey).append("\n");
+
+        if (expirationDate != null) {
+            byte[] expirationDateBytes = expirationDate.toString().getBytes();
+            String encodedExpirationDate = Base64.getEncoder().encodeToString(expirationDateBytes);
+            pemContent.append(encodedExpirationDate).append("\n");
         }
 
-        String encodedSignature = Base64.getEncoder().encodeToString(signature);
+        if (signature != null) {
+            String encodedSignature = Base64.getEncoder().encodeToString(signature);
+            pemContent.append(encodedSignature).append("\n");
+        }
 
-        return "-----BEGIN CERTIFICATE-----\n" +
-                encodedSerialNumber + "\n" +
-                encodedUsername + "\n" +
-                encodedKey + "\n" +
-                encodedSignature + "\n" +
-                "-----END CERTIFICATE-----";
+        pemContent.append("-----END CERTIFICATE-----\n");
+        return pemContent.toString();
     }
 
 }

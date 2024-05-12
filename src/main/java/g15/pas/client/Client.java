@@ -206,6 +206,11 @@ public class Client {
                 break;
             }
 
+            if (CertificateRevoker.isExpired(certificate)) {
+                Logger.error("Certificado expirado. Não é possível enviar mensagens.");
+                break;
+            }
+
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {
@@ -532,6 +537,12 @@ public class Client {
             certificates.remove(username);
             sharedSecrets.remove(username);
             throw new InvalidCertificateException("Certificado revogado para o utilizador \"" + username + "\".");
+        }
+
+        if (CertificateRevoker.isExpired(certificate)) {
+            certificates.remove(username);
+            sharedSecrets.remove(username);
+            throw new InvalidCertificateException("Certificado expirado para o utilizador \"" + username + "\".");
         }
     }
 

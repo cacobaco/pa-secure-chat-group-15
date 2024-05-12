@@ -13,6 +13,7 @@ public class Certificate implements Serializable {
     private final String serialNumber;
     private final String username;
     private final PublicKey publicKey;
+    private Long expirationDate;
     private byte[] signature;
 
     /**
@@ -65,6 +66,24 @@ public class Certificate implements Serializable {
      */
     public PublicKey getPublicKey() {
         return publicKey;
+    }
+
+    /**
+     * Getter for expirationDate.
+     *
+     * @return The expiration date associated with the certificate
+     */
+    public Long getExpirationDate() {
+        return expirationDate;
+    }
+
+    /**
+     * Setter for expirationDate.
+     *
+     * @param expirationDate The expiration date to be set
+     */
+    public void setExpirationDate(Long expirationDate) {
+        this.expirationDate = expirationDate;
     }
 
     /**

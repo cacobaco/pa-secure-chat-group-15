@@ -1,5 +1,7 @@
 package g15.pas.utils;
 
+import java.util.Date;
+
 public class CertificateRevoker {
 
     public static void revokeCertificate(Certificate certificate) throws Exception {
@@ -14,6 +16,10 @@ public class CertificateRevoker {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static boolean isExpired(Certificate certificate) {
+        return certificate.getExpirationDate() < (new Date()).getTime();
     }
 
 }
