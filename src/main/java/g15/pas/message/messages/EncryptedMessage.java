@@ -2,17 +2,15 @@ package g15.pas.message.messages;
 
 import g15.pas.message.Message;
 
-import java.util.Arrays;
-
 public class EncryptedMessage extends Message<byte[]> {
-    private final byte[] signature;
+    private final byte[] mac;
 
-    public EncryptedMessage(byte[] encryptedMessage, byte[] signature, String sender, String[] recipients) {
+    public EncryptedMessage(byte[] encryptedMessage, byte[] mac, String sender, String[] recipients) {
         super(encryptedMessage, sender, recipients);
-        this.signature = signature;
+        this.mac = mac;
     }
 
-    public byte[] getSignature() {
-        return signature;
+    public byte[] getMac() {
+        return mac;
     }
 }
