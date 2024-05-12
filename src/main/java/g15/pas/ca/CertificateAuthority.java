@@ -19,6 +19,11 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
+
+/**
+ * This class represents a Certificate Authority (CA) server.
+ * It handles client connections and messages, and performs certificate signing.
+ */
 public class CertificateAuthority {
 
     private final PrivateKey privateKey;
@@ -26,6 +31,14 @@ public class CertificateAuthority {
 
     private final ServerSocket caSocket;
 
+    /**
+     * Constructor for CertificateAuthority.
+     * It generates a key pair and starts the CA server.
+     *
+     * @param port The port number for the CA server
+     * @throws IOException If an I/O error occurs when opening the socket
+     * @throws KeyPairCreationException If an error occurs when creating the key pair
+     */
     public CertificateAuthority(int port) throws IOException, KeyPairCreationException {
         // Create key pair
         System.out.println("A gerar par de chaves...");
@@ -45,6 +58,9 @@ public class CertificateAuthority {
         Logger.log("CA iniciada com sucesso na porta \"%d\".", port);
     }
 
+    /**
+     * Starts the CA server and waits for client connections.
+     */
     public void start() {
         Logger.log("CA à espera de conexões...");
 
@@ -62,10 +78,18 @@ public class CertificateAuthority {
         close();
     }
 
+
+    /**
+     * Stops the CA server.
+     */
     public void stop() {
         close();
     }
 
+
+    /**
+     * Closes the CA server.
+     */
     private void close() {
         try {
             Logger.log("A fechar CA...");
@@ -76,6 +100,11 @@ public class CertificateAuthority {
         }
     }
 
+    /**
+     * Creates a new client handler for a client connection.
+     *
+     * @param socket The socket of the client connection
+     */
     private void createClientHandler(Socket socket) {
         try {
             Logger.log("A criar handler para o cliente...");
@@ -87,6 +116,10 @@ public class CertificateAuthority {
         }
     }
 
+    /**
+     * This class represents a client handler.
+     * It handles client messages and performs actions based on the message type.
+     */
     private class ClientHandler extends Thread {
 
         private final Socket socket;
@@ -94,12 +127,22 @@ public class CertificateAuthority {
         private final ObjectOutputStream out;
         private String username;
 
+        /**
+         * Constructor for ClientHandler.
+         *
+         * @param socket The socket of the client connection
+         * @throws IOException If an I/O error occurs when creating the input and output streams
+         */
         public ClientHandler(Socket socket) throws IOException {
             this.socket = socket;
             this.in = new ObjectInputStream(socket.getInputStream());
             this.out = new ObjectOutputStream(socket.getOutputStream());
         }
 
+        /**
+         * Starts the client handler.
+         * It reads messages from the client and handles them.
+         */
         @Override
         public void run() {
             while (true) {
@@ -120,6 +163,10 @@ public class CertificateAuthority {
             closeConnection();
         }
 
+
+        /**
+         * Closes the client connection.
+         */
         private void closeConnection() {
             try {
                 Logger.log("A fechar conexão...");
@@ -136,6 +183,12 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Handles a client message.
+         * It performs actions based on the message type.
+         *
+         * @param message The client message
+         */
         private void handleMessage(Message message) {
             Logger.log("A receber mensagem...");
 
@@ -154,6 +207,10 @@ public class CertificateAuthority {
             Logger.log("Mensagem recebida de \"%s\": \"%s\"", message.getSender(), message.getContent());
         }
 
+        /**
+         * Handles a public key request message.
+         * It sends the public key to the client.
+         */
         private void handlePublicKeyRequest() {
             try {
                 sendPublicKey();
@@ -163,6 +220,11 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Sends the public key to the client.
+         *
+         * @throws ConnectionException If an error occurs when sending the message
+         */
         private void sendPublicKey() throws ConnectionException {
             Logger.log("A enviar chave pública...");
 
@@ -172,6 +234,10 @@ public class CertificateAuthority {
             Logger.log("Chave pública enviada com sucesso.");
         }
 
+        /**
+         * Handles a certificate sign request message.
+         * It signs the certificate and sends the response to the client.
+         */
         private void handleSignRequest() {
             try {
                 signCertificate(username);
@@ -196,6 +262,12 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Signs a certificate.
+         *
+         * @param username The username of the certificate owner
+         * @throws InvalidCertificateException If an error occurs when signing the certificate
+         */
         private void signCertificate(String username) throws InvalidCertificateException {
             Logger.log("A assinar certificado para \"%s\"...", username);
 
@@ -212,6 +284,12 @@ public class CertificateAuthority {
             Logger.log("Certificado assinado com sucesso.");
         }
 
+        /**
+         * Sends the certificate sign response to the client.
+         *
+         * @param response The response of the certificate sign request
+         * @throws ConnectionException If an error occurs when sending the message
+         */
         private void sendSignResponse(boolean response) throws ConnectionException {
             Logger.log("A enviar resposta de assinatura de certificado...");
 
@@ -221,6 +299,12 @@ public class CertificateAuthority {
             Logger.log("Resposta de assinatura de certificado enviada com sucesso.");
         }
 
+        /**
+         * Sends a message to the client.
+         *
+         * @param message The message to be sent
+         * @throws ConnectionException If an error occurs when sending the message
+         */
         public void sendMessage(Message message) throws ConnectionException {
             synchronized (out) {
                 try {
