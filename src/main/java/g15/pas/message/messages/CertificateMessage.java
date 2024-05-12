@@ -4,37 +4,39 @@ import g15.pas.message.Message;
 import g15.pas.utils.Certificate;
 
 /**
- * This class extends the Message class with Certificate as the type parameter.
- * It represents a certificate message that can be sent from a sender to multiple recipients.
- * The content of a CertificateMessage is a Certificate, which represents the certificate to be sent.
+ * This class represents a certificate message that extends the Message class.
+ * The message content is of type Certificate.
+ * It provides constructors to create a CertificateMessage with content, sender, and recipients.
  */
 public class CertificateMessage extends Message<Certificate> {
 
     /**
-     * Constructor for CertificateMessage with only content.
+     * Constructs a new CertificateMessage with the specified content.
+     * The sender and recipients are set to null.
      *
-     * @param certificate The content of the message
+     * @param certificate the content of the message
      */
     public CertificateMessage(Certificate certificate) {
         super(certificate);
     }
 
     /**
-     * Constructor for CertificateMessage with content and sender.
+     * Constructs a new CertificateMessage with the specified content and sender.
+     * The recipients are set to null.
      *
-     * @param certificate The content of the message
-     * @param sender      The sender of the message
+     * @param certificate the content of the message
+     * @param sender      the sender of the message
      */
     public CertificateMessage(Certificate certificate, String sender) {
         super(certificate, sender);
     }
 
     /**
-     * Constructor for CertificateMessage with content, sender, and recipients.
+     * Constructs a new CertificateMessage with the specified content, sender, and recipients.
      *
-     * @param certificate The content of the message
-     * @param sender      The sender of the message
-     * @param recipients  The recipients of the message
+     * @param certificate the content of the message
+     * @param sender      the sender of the message
+     * @param recipients  the recipients of the message
      */
     public CertificateMessage(Certificate certificate, String sender, String[] recipients) {
         super(certificate, sender, recipients);

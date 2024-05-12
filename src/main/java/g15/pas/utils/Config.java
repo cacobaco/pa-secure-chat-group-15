@@ -6,7 +6,8 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * This class is responsible for loading and providing access to the properties defined in the configuration file.
+ * This class provides a centralized location for configuration properties.
+ * It reads properties from a file and provides static access to these properties.
  */
 public class Config {
 
@@ -43,7 +44,8 @@ public class Config {
     }
 
     /**
-     * Loads the properties from the configuration file into the Properties object.
+     * Loads properties from a file.
+     * If an error occurs during loading, it logs the error message.
      */
     private static void loadProperties() {
         try (InputStream inputStream = new FileInputStream(Constants.CONFIG_FILE_PATH)) {

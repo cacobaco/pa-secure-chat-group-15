@@ -7,8 +7,18 @@ import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.util.Base64;
 
+/**
+ * This class provides utility methods for writing a Certificate to a file.
+ */
 public class CertificateWriter {
 
+    /**
+     * Writes a Certificate to a file.
+     *
+     * @param certificate the Certificate to be written
+     * @param filePath    the path to the file
+     * @throws Exception if an error occurs during writing
+     */
     public static void writeCertificate(Certificate certificate, String filePath) throws Exception {
         String pemContent = convertToPEM(certificate);
 
@@ -18,6 +28,12 @@ public class CertificateWriter {
         writer.close();
     }
 
+    /**
+     * Converts a Certificate to a PEM content string.
+     *
+     * @param certificate the Certificate to be converted
+     * @return the PEM content string
+     */
     private static String convertToPEM(Certificate certificate) {
         String serialNumber = certificate.getSerialNumber();
         PublicKey publicKey = certificate.getPublicKey();

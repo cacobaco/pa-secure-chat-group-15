@@ -7,15 +7,15 @@ import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
 
 /**
- * This class provides methods for RSA encryption and decryption.
+ * This class provides utility methods for encryption and decryption using RSA and AES algorithms.
  */
 public class Encryption {
 
     /**
      * Generates a RSA KeyPair.
      *
-     * @return a RSA KeyPair
-     * @throws Exception if any error occurs during the KeyPair generation
+     * @return the generated KeyPair
+     * @throws Exception if an error occurs during KeyPair generation
      */
     public static KeyPair generateKeyPair() throws Exception {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -23,6 +23,13 @@ public class Encryption {
         return keyPairGenerator.generateKeyPair();
     }
 
+    /**
+     * Converts a byte array to a PublicKey.
+     *
+     * @param keyBytes the byte array to be converted
+     * @return the generated PublicKey
+     * @throws Exception if an error occurs during PublicKey generation
+     */
     public static PublicKey convertBytesToPublicKey(byte[] keyBytes) throws Exception {
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
@@ -30,12 +37,12 @@ public class Encryption {
     }
 
     /**
-     * Encrypts a message using RSA encryption.
+     * Encrypts a message using RSA.
      *
      * @param message   the message to be encrypted
-     * @param publicKey the public key to be used for encryption
+     * @param publicKey the PublicKey to be used for encryption
      * @return the encrypted message
-     * @throws Exception if any error occurs during the encryption process
+     * @throws Exception if an error occurs during encryption
      */
     public static byte[] encryptRSA(byte[] message, Key publicKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
@@ -44,12 +51,12 @@ public class Encryption {
     }
 
     /**
-     * Decrypts a message using RSA decryption.
+     * Decrypts a message using RSA.
      *
      * @param message    the message to be decrypted
-     * @param privateKey the private key to be used for decryption
+     * @param privateKey the PrivateKey to be used for decryption
      * @return the decrypted message
-     * @throws Exception if any error occurs during the decryption process
+     * @throws Exception if an error occurs during decryption
      */
     public static byte[] decryptRSA(byte[] message, Key privateKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
@@ -58,10 +65,12 @@ public class Encryption {
     }
 
     /**
-     * @param message   the message to be decrypted
-     * @param secretKey the secret key used to decrypt the message
-     * @return the decrypted message as an array of bytes
-     * @throws Exception when the encryption fails
+     * Encrypts a message using AES.
+     *
+     * @param message   the message to be encrypted
+     * @param secretKey the secret key to be used for encryption
+     * @return the encrypted message
+     * @throws Exception if an error occurs during encryption
      */
     public static byte[] encryptAES(byte[] message, byte[] secretKey) throws Exception {
         byte[] secretKeyPadded = ByteBuffer.allocate(16).put(secretKey).array();
@@ -72,10 +81,12 @@ public class Encryption {
     }
 
     /**
-     * @param message   the message to be encrypted
-     * @param secretKey the secret key used to encrypt the message
-     * @return the encrypted message as an array of bytes
-     * @throws Exception when the decryption fails
+     * Decrypts a message using AES.
+     *
+     * @param message   the message to be decrypted
+     * @param secretKey the secret key to be used for decryption
+     * @return the decrypted message
+     * @throws Exception if an error occurs during decryption
      */
     public static byte[] decryptAES(byte[] message, byte[] secretKey) throws Exception {
         byte[] secretKeyPadded = ByteBuffer.allocate(16).put(secretKey).array();

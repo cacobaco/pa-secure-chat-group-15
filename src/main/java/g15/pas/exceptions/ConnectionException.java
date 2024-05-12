@@ -1,8 +1,9 @@
 package g15.pas.exceptions;
 
 /**
- * This class represents a custom exception that is thrown when a connection error occurs.
- * It extends the Exception class and includes a static code and message for the connection error.
+ * This class represents a connection exception that extends the Exception class.
+ * It provides several constructors to create a ConnectionException with a message, cause, or both.
+ * It also contains a static final code and message for a connection error.
  */
 public class ConnectionException extends Exception {
 
@@ -10,39 +11,36 @@ public class ConnectionException extends Exception {
     private static final String MESSAGE = "Ocorreu um erro ao estabelecer uma conexão.";
 
     /**
-     * Default constructor for ConnectionException.
-     * It initializes the superclass with the default message.
+     * Constructs a new ConnectionException with the default connection error message.
      */
     public ConnectionException() {
         super(MESSAGE);
     }
 
     /**
-     * Constructor for ConnectionException with a cause.
-     * It initializes the superclass with the message and cause from the Throwable.
+     * Constructs a new ConnectionException with the specified cause.
+     * The message is set to the message of the cause.
      *
-     * @param cause The Throwable that caused the exception.
+     * @param cause the cause of the exception
      */
     public ConnectionException(Throwable cause) {
         super(cause.getMessage(), cause);
     }
 
     /**
-     * Constructor for ConnectionException with a custom message.
-     * It initializes the superclass with the custom message.
+     * Constructs a new ConnectionException with the specified message.
      *
-     * @param message The custom message for the exception.
+     * @param message the message of the exception
      */
     public ConnectionException(String message) {
         super(message);
     }
 
     /**
-     * Constructor for ConnectionException with a custom message and a cause.
-     * It initializes the superclass with the custom message and the cause from the Throwable.
+     * Constructs a new ConnectionException with the specified message and cause.
      *
-     * @param message The custom message for the exception.
-     * @param cause   The Throwable that caused the exception.
+     * @param message the message of the exception
+     * @param cause   the cause of the exception
      */
     public ConnectionException(String message, Throwable cause) {
         super(message, cause);
