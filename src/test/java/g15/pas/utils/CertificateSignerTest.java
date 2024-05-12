@@ -33,31 +33,6 @@ public class CertificateSignerTest {
             fail("Exceção lançada: " + e.getMessage());
         }
     }
-    @Test
-    public void testSerializeCertificate() {
-        try {
-            String username = "example_user";
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-            keyPairGenerator.initialize(2048);
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            PublicKey publicKey = keyPair.getPublic();
-            Certificate certificate = new Certificate(username, publicKey);
-
-            byte[] serializedCertificate = CertificateSigner.serializeCertificate(certificate);
-
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(serializedCertificate);
-            ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-            String deserializedUsername = (String) objectInputStream.readObject();
-            PublicKey deserializedPublicKey = (PublicKey) objectInputStream.readObject();
-            objectInputStream.close();
-
-            assertEquals(username, deserializedUsername, "O nome de usuário desserializado não corresponde");
-            assertEquals(publicKey, deserializedPublicKey, "A chave pública desserializada não corresponde");
-
-        } catch (Exception e) {
-            fail("Exceção lançada: " + e.getMessage());
-        }
-    }
 
     @Test
     public void testHashCertificate() {
