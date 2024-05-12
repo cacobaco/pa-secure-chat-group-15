@@ -280,16 +280,42 @@ public class Client {
         sendMessage(commandMessage);
     }
 
+    /**
+     * Receives an encrypted Diffie-Hellman key from another client.
+     * This method is used when the client receives a Diffie-Hellman key from another client who wants to establish a shared secret.
+     * It decrypts the Diffie-Hellman key, computes the shared secret, and stores it for future communication.
+     *
+     * @param encryptedDHKey the EncryptedDHKeyMessage containing the encrypted Diffie-Hellman key
+     * @throws Exception if an error occurs during the decryption or computation of the shared secret
+     */
     private void receiveEncryptedDHKey(EncryptedDHKeyMessage encryptedDHKey) throws Exception {
         if (SharedSecrets.containsKey(encryptedDHKey.getSender())) return;
         SharedSecrets.put(encryptedDHKey.getSender(), DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getContent(), privateKey)), privateDHKey));
     }
 
+    /**
+     * Sends an encrypted Diffie-Hellman key to a list of recipients.
+     * This method is used when the client wants to establish a shared secret with multiple other clients.
+     * It encrypts the client's public Diffie-Hellman key with the public key of each recipient and sends it to them.
+     * The recipients can then decrypt the Diffie-Hellman key, compute the shared secret, and store it for future communication.
+     *
+     * @param recipient an usernames of the recipient
+     * @throws Exception if an error occurs during the encryption or sending of the Diffie-Hellman key
+     */
     private void sendEncryptedDHKey(String recipient) throws Exception {
         EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
         out.writeObject(encryptedDHKey);
     }
 
+    /**
+     * Sends an encrypted Diffie-Hellman key to a list of recipients.
+     * This method is used when the client wants to establish a shared secret with multiple other clients.
+     * It encrypts the client's public Diffie-Hellman key with the public key of each recipient and sends it to them.
+     * The recipients can then decrypt the Diffie-Hellman key, compute the shared secret, and store it for future communication.
+     *
+     * @param recipients an array of usernames of the recipients
+     * @throws Exception if an error occurs during the encryption or sending of the Diffie-Hellman key
+     */
     private void sendEncryptedDHKey(String[] recipients) throws Exception {
         List<String> recipientsList = List.of(recipients);
         for(String recipient : recipientsList) {
@@ -429,6 +455,15 @@ public class Client {
             }
         }
 
+        /**
+         * Handles an EncryptedDHKeyMessage received from the server.
+         * This method is responsible for processing the received Diffie-Hellman key, which is encrypted.
+         * If the shared secret with the sender is not already established, it sends back its own encrypted Diffie-Hellman key.
+         * Then, it receives the encrypted Diffie-Hellman key and stores the computed shared secret.
+         *
+         * @param message the EncryptedDHKeyMessage to handle
+         * @throws Exception if an error occurs during the processing of the encrypted Diffie-Hellman key
+         */
         private void handleEncryptedDHKeyMessage(EncryptedDHKeyMessage message) throws Exception {
             if (!SharedSecrets.containsKey(message.getSender())) {
                 sendEncryptedDHKey(message.getSender());
@@ -465,6 +500,15 @@ public class Client {
             Logger.log(textMessage.getContent());
         }
 
+        /**
+         * Handles an encrypted message received from the server.
+         * The method decrypts the message using the shared secret associated with the sender of the message.
+         * It also decrypts the signature of the message and verifies its integrity by comparing it with the digest of the decrypted message.
+         * If the integrity check passes, it logs the decrypted message. If it fails, it throws a RuntimeException.
+         *
+         * @param EncryptedMessage the encrypted message to handle
+         * @throws Exception if an error occurs during decryption or integrity verification
+         */
         private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
             byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), SharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
             byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
