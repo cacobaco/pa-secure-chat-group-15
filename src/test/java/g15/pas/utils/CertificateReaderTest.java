@@ -1,47 +1,98 @@
 package g15.pas.utils;
 
-import g15.pas.utils.Certificate;
-import g15.pas.utils.CertificateReader;
 import org.junit.jupiter.api.Test;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PublicKey;
-import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CertificateReaderTest {
 
-    private String convertToPEM(Certificate certificate) {
-        String encodedUsername = Base64.getEncoder().encodeToString(certificate.getUsername().getBytes());
-        String encodedKey = Base64.getEncoder().encodeToString(certificate.getPublicKey().getEncoded());
-        String encodedSignature = Base64.getEncoder().encodeToString(certificate.getSignature());
-
-        StringBuilder pemContent = new StringBuilder();
-        pemContent.append("-----BEGIN CERTIFICATE-----\n");
-        pemContent.append(encodedUsername).append("\n");
-        pemContent.append(encodedKey).append("\n");
-        pemContent.append(encodedSignature).append("\n");
-        pemContent.append("-----END CERTIFICATE-----\n");
-
-        return pemContent.toString();
-    }
-
-    private void writeToFile(String content, String filePath) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
-        writer.write(content);
-        writer.close();
-    }
-
-    private void deleteFile(String filePath) {
+    @Test
+    public void shouldReadCertificateFromFile() {
         try {
-            Files.deleteIfExists(Paths.get(filePath));
-        } catch (IOException e) {
-            System.out.println("Falha ao excluir o arquivo temporário: " + e.getMessage());
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            PublicKey publicKey = keyPair.getPublic();
+
+            String username = "example_user";
+            String serialNumber = "1234567890";
+            Certificate certificate = new Certificate(serialNumber, username, publicKey);
+
+            String filePath = "secure/tests/test_certificate.pem";
+
+            CertificateWriter.writeCertificate(certificate, filePath);
+
+            Certificate readCertificate = CertificateReader.readCertificate(filePath);
+
+            assertEquals(serialNumber, readCertificate.getSerialNumber());
+            assertEquals(username, readCertificate.getUsername());
+            assertEquals(publicKey, readCertificate.getPublicKey());
+        } catch (Exception e) {
+            fail("Exception thrown: " + e.getMessage());
         }
     }
+
+    @Test
+    public void shouldReadCertificateWithExpirationDateFromFile() {
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            PublicKey publicKey = keyPair.getPublic();
+
+            String username = "example_user";
+            String serialNumber = "1234567890";
+            Certificate certificate = new Certificate(serialNumber, username, publicKey);
+
+            Long expirationDate = System.currentTimeMillis() + 100000;
+            certificate.setExpirationDate(expirationDate);
+
+            String filePath = "secure/tests/test_certificate.pem";
+
+            CertificateWriter.writeCertificate(certificate, filePath);
+
+            Certificate readCertificate = CertificateReader.readCertificate(filePath);
+
+            assertEquals(serialNumber, readCertificate.getSerialNumber());
+            assertEquals(username, readCertificate.getUsername());
+            assertEquals(publicKey, readCertificate.getPublicKey());
+            assertEquals(expirationDate, readCertificate.getExpirationDate());
+        } catch (Exception e) {
+            fail("Exception thrown: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldReadCertificateWithSignatureFromFile() {
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            PublicKey publicKey = keyPair.getPublic();
+
+            String username = "example_user";
+            String serialNumber = "1234567890";
+
+            Certificate certificate = new Certificate(serialNumber, username, publicKey);
+            certificate = CertificateSigner.signCertificate(certificate, keyPair.getPrivate());
+
+            String filePath = "secure/tests/test_certificate.pem";
+
+            CertificateWriter.writeCertificate(certificate, filePath);
+
+            Certificate readCertificate = CertificateReader.readCertificate(filePath);
+
+            assertEquals(serialNumber, readCertificate.getSerialNumber());
+            assertEquals(username, readCertificate.getUsername());
+            assertEquals(publicKey, readCertificate.getPublicKey());
+            assertNotNull(readCertificate.getSignature());
+        } catch (Exception e) {
+            fail("Exception thrown: " + e.getMessage());
+        }
+    }
+
 }
