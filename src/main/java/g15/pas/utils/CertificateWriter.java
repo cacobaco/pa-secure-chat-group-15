@@ -19,12 +19,12 @@ public class CertificateWriter {
     }
 
     private static String convertToPEM(Certificate certificate) {
-        int serialNumber = certificate.getSerialNumber();
+        String serialNumber = certificate.getSerialNumber();
         PublicKey publicKey = certificate.getPublicKey();
         String username = certificate.getUsername();
         byte[] signature = certificate.getSignature();
 
-        byte[] serialNumberBytes = String.valueOf(serialNumber).getBytes();
+        byte[] serialNumberBytes = serialNumber.getBytes();
         String encodedSerialNumber = Base64.getEncoder().encodeToString(serialNumberBytes);
 
         byte[] keyBytes = publicKey.getEncoded();

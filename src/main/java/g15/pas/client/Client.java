@@ -201,6 +201,11 @@ public class Client {
         do {
             String message = scanner.nextLine();
 
+            if (CertificateRevoker.isRevoked(certificate)) {
+                Logger.error("Certificado revogado. Não é possível enviar mensagens.");
+                break;
+            }
+
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {
@@ -425,6 +430,13 @@ public class Client {
             recipients = Arrays.stream(recipients).filter(recipient -> !recipient.equals(username)).toArray(String[]::new);
 
             for (String recipient : recipients) {
+                try {
+                    checkCertificateRevoke(recipient);
+                } catch (InvalidCertificateException e) {
+                    Logger.error(e.getMessage());
+                    continue;
+                }
+
                 BigInteger sharedSecret = sharedSecrets.get(recipient);
 
                 if (sharedSecret == null) {
@@ -484,11 +496,42 @@ public class Client {
      * @throws ConnectionException if an error occurs while sending the message
      */
     private void sendMessage(Message message) throws ConnectionException {
+        if (message.getRecipients() != null) {
+            List<String> recipients = new ArrayList<>(Arrays.stream(message.getRecipients()).toList());
+
+            for (String recipient : recipients) {
+                try {
+                    checkCertificateRevoke(recipient);
+                } catch (InvalidCertificateException e) {
+                    recipients.remove(recipient);
+                    Logger.error(e.getMessage());
+                }
+            }
+
+            message.setRecipients(recipients.toArray(new String[0]));
+        }
+
         try {
             out.writeObject(message);
             out.flush();
         } catch (IOException e) {
             throw new ConnectionException(e);
+        }
+    }
+
+    private void checkCertificateRevoke(String username) throws InvalidCertificateException {
+        Certificate certificate = certificates.get(username);
+
+        if (certificate == null) {
+            certificates.remove(username);
+            sharedSecrets.remove(username);
+            throw new InvalidCertificateException("Certificado não encontrado para o utilizador \"" + username + "\".");
+        }
+
+        if (CertificateRevoker.isRevoked(certificate)) {
+            certificates.remove(username);
+            sharedSecrets.remove(username);
+            throw new InvalidCertificateException("Certificado revogado para o utilizador \"" + username + "\".");
         }
     }
 
@@ -536,7 +579,22 @@ public class Client {
         }
 
         private void handleMessage(Message message) throws Exception {
-            if (message.getSender() != null && message.getSender().equals(username)) return;
+            String sender = message.getSender();
+
+            if (sender != null) {
+                if (sender.equals(username)) {
+                    return;
+                }
+
+                if (!(message instanceof CertificateMessage)) {
+                    try {
+                        checkCertificateRevoke(sender);
+                    } catch (InvalidCertificateException e) {
+                        Logger.error(e.getMessage());
+                        return;
+                    }
+                }
+            }
 
             if (message instanceof CertificateMessage certificateMessage) {
                 try {
