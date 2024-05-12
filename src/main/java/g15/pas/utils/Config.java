@@ -22,6 +22,7 @@ public class Config {
     public static final String CA_HOST;
     public static final int CA_PORT;
     public static final String CA_PATH;
+    public static final String CA_CRL_PATH;
 
     static {
         loadProperties();
@@ -35,7 +36,8 @@ public class Config {
 
         CA_HOST = properties.getProperty("ca.host", "localhost");
         CA_PORT = Integer.parseUnsignedInt(properties.getProperty("ca.port", "8100"));
-        CA_PATH = properties.getProperty("ca.path", "ca");
+        CA_PATH = properties.getProperty("ca.path", "secure/certificates/");
+        CA_CRL_PATH = properties.getProperty("ca.crl.path", "secure/crl/");
     }
 
     /**

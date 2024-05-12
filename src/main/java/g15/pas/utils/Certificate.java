@@ -2,6 +2,7 @@ package g15.pas.utils;
 
 import java.io.Serializable;
 import java.security.PublicKey;
+import java.util.UUID;
 
 /**
  * This class represents a Certificate which implements Serializable.
@@ -9,9 +10,7 @@ import java.security.PublicKey;
  */
 public class Certificate implements Serializable {
 
-    private static int SERIAL_NUMBER = 0;
-
-    private final int serialNumber;
+    private final String serialNumber;
     private final String username;
     private final PublicKey publicKey;
     private byte[] signature;
@@ -23,7 +22,7 @@ public class Certificate implements Serializable {
      * @param publicKey The public key associated with the certificate
      */
     public Certificate(String username, PublicKey publicKey) {
-        this.serialNumber = SERIAL_NUMBER++;
+        this.serialNumber = UUID.randomUUID().toString();
         this.username = username;
         this.publicKey = publicKey;
     }
@@ -35,7 +34,7 @@ public class Certificate implements Serializable {
      * @param username     The username associated with the certificate
      * @param publicKey    The public key associated with the certificate
      */
-    public Certificate(int serialNumber, String username, PublicKey publicKey) {
+    public Certificate(String serialNumber, String username, PublicKey publicKey) {
         this.serialNumber = serialNumber;
         this.username = username;
         this.publicKey = publicKey;
@@ -46,7 +45,7 @@ public class Certificate implements Serializable {
      *
      * @return The serial number associated with the certificate
      */
-    public int getSerialNumber() {
+    public String getSerialNumber() {
         return serialNumber;
     }
 

@@ -30,7 +30,7 @@ public class CertificateReader {
         String encodedKey = lines[3];
 
         byte[] serialNumberBytes = Base64.getDecoder().decode(encodedSerialNumber);
-        int serialNumber = Integer.parseInt(new String(serialNumberBytes));
+        String serialNumber = new String(serialNumberBytes);
 
         byte[] usernameBytes = Base64.getDecoder().decode(encodedUsername);
         String username = new String(usernameBytes);
