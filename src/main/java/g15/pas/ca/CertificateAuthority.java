@@ -1,43 +1,35 @@
-package g15.pas.ca;
+package g15.pas.server;
 
+import g15.pas.exceptions.ConnectionException;
+import g15.pas.exceptions.InvalidCertificateException;
 import g15.pas.exceptions.KeyPairCreationException;
-import g15.pas.utils.Encryption;
+import g15.pas.message.Message;
+import g15.pas.message.enums.CommandType;
+import g15.pas.message.messages.BooleanMessage;
+import g15.pas.message.messages.CommandMessage;
+import g15.pas.message.messages.KeyMessage;
+import g15.pas.utils.*;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.security.*;
-
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class CertificateAuthority {
 
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
+
     private final ServerSocket caSocket;
-    private ObjectInputStream in;
-    private ObjectOutputStream out;
-    private String username;
-    private String filePath;
 
-
-    public CertificateAuthority(int portCA) throws KeyPairCreationException, IOException {
-
-
-
-        System.out.println("A iniciar servidor...");
-        this.caSocket = new ServerSocket(portCA);
-
-        System.out.printf("Servidor iniciado na porta %d.\n", portCA);
-
-
+    public CertificateAuthority(int port) throws IOException, KeyPairCreationException {
         // Create key pair
-        //System.out.println("A gerar par de chaves...");
+        System.out.println("A gerar par de chaves...");
         KeyPair keyPair;
         try {
             keyPair = Encryption.generateKeyPair();
@@ -46,158 +38,203 @@ public class CertificateAuthority {
         }
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
-        // System.out.println("Par de chaves gerado com sucesso.");
+        System.out.println("Par de chaves gerado com sucesso.");
 
-
+        // Start CA
+        Logger.log("A iniciar CA...");
+        this.caSocket = new ServerSocket(port);
+        Logger.log("CA iniciada com sucesso na porta \"%d\".", port);
     }
 
-    public void start() throws IOException {
-        System.out.println("Servidor pronto para aceitar conexões.");
+    public void start() {
+        Logger.log("CA à espera de conexões...");
+
         while (true) {
-            Socket socket = null;
+            try {
+                Socket socket = caSocket.accept();
+                Logger.log("Nova conexão aceite.");
+                createClientHandler(socket);
+            } catch (IOException e) {
+                Logger.error("Erro ao aceitar conexão: " + e.getMessage());
+                break;
+            }
+        }
+
+        close();
+    }
+
+    public void stop() {
+        close();
+    }
+
+    private void close() {
+        try {
+            Logger.log("A fechar CA...");
+            caSocket.close();
+            Logger.log("CA fechada com sucesso.");
+        } catch (IOException e) {
+            Logger.error("Ocorreu um erro ao fechar a CA: " + e.getMessage());
+        }
+    }
+
+    private void createClientHandler(Socket socket) {
+        try {
+            Logger.log("A criar handler para o cliente...");
+            ClientHandler clientHandler = new ClientHandler(socket);
+            clientHandler.start();
+            Logger.log("Handler criado com sucesso.");
+        } catch (IOException e) {
+            Logger.error("Ocorreu um erro ao criar handler para o cliente: " + e.getMessage());
+        }
+    }
+
+    private class ClientHandler extends Thread {
+
+        private final Socket socket;
+        private final ObjectInputStream in;
+        private final ObjectOutputStream out;
+        private String username;
+
+        public ClientHandler(Socket socket) throws IOException {
+            this.socket = socket;
+            this.in = new ObjectInputStream(socket.getInputStream());
+            this.out = new ObjectOutputStream(socket.getOutputStream());
+        }
+
+        @Override
+        public void run() {
             while (true) {
                 try {
+                    Message message = (Message) in.readObject();
 
-                    socket = caSocket.accept();
-                    ObjectInputStream inCA = new ObjectInputStream(socket.getInputStream());
-                    Object receivedObject = inCA.readObject();
-
-                    //sha-256 hash
-                    if (receivedObject instanceof String) {
-                        username = (String) receivedObject;
-                        String filePath = "CertificateStorage\\certificate"+ username + ".txt";
-                        System.out.println("Mensagem recebida do cliente: " + username);
-                        calculateSHA256(Paths.get(filePath));
-                        System.out.println("SHA-256 hash: " + filePath);
-                        //digital signature
-                        try {
-                            byte[] data = Files.readAllBytes(Paths.get(filePath));
-                            byte[] digitalSignature = generateDigitalSignature(privateKey, data);
-                            // Append the digital signature to the file
-                            try (FileWriter writer = new FileWriter(filePath, true)) {
-                                writer.write("\nDigital Signature: " + bytesToHex(digitalSignature));
-
-
-                            } catch (IOException e) {
-                                throw new RuntimeException("Erro escrevendo assinatura digital", e);
-                            }
-
-
-                            System.out.println("Digital signature generated and appended to the file.");
-                        } catch (IOException e) {
-                            System.err.println("Error reading file for digital signature: " + e.getMessage());
-                        }
-
+                    if (username == null) {
+                        username = message.getSender();
                     }
+
+                    handleMessage(message);
                 } catch (IOException | ClassNotFoundException e) {
-                    System.err.println("Erro ao ler mensagem do cliente: " + e.getMessage());
-                } finally {
-                    if (socket != null) {
-                        sendMessage();
-                        saveSignedCertificate(filePath);
-                        System.out.println("coneccao ded.");
-                        socket.close(); // Close the socket after processing the message
-                    }
+                    Logger.error("Ocorreu um erro ao ler mensagem do cliente: " + e.getMessage());
+                    break;
                 }
             }
 
+            closeConnection();
         }
-    }
 
-    /* private void close() {
-         try {
-             System.out.println("A fechar servidor...");
-             caSocket.close();
-             System.out.println("Servidor fechado.");
-         } catch (IOException e) {
-             System.err.println("Erro ao fechar socket do servidor: " + e.getMessage());
-         }
-     }
- }*/
+        private void closeConnection() {
+            try {
+                Logger.log("A fechar conexão...");
 
-    private static void calculateSHA256(Path filePath) {
-        try (InputStream is = new FileInputStream(filePath.toFile())){
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
-            int bytesRead;
+                in.close();
+                out.close();
+                socket.close();
 
-            try (FileInputStream fis = new FileInputStream(filePath.toFile())) {
-                while ((bytesRead = fis.read(buffer)) != -1) {
-                    digest.update(buffer, 0, bytesRead);
-                }
-            }
-
-            byte[] hashBytes = digest.digest();
-            String hashValue = bytesToHex(hashBytes);
-
-            // Append the hash value to the file
-            try (FileWriter writer = new FileWriter(filePath.toFile(), true)) {
-                writer.write("\nSHA-256 Hash: " + hashValue);
+                Logger.log("Conexão fechada com sucesso.");
             } catch (IOException e) {
-                throw new RuntimeException("Error writing hash value to the file", e);
+                Logger.error("Ocorreu um erro ao fechar conexão: " + e.getMessage());
+            } finally {
+                this.interrupt();
             }
-        } catch (IOException | NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error calculating SHA-256 hash", e);
         }
 
-    }
+        private void handleMessage(Message message) {
+            Logger.log("A receber mensagem...");
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-
-    private byte[] generateDigitalSignature(PrivateKey privateKey, byte[] data) {
-        try {
-            Signature signature = Signature.getInstance("SHA256withRSA");
-            signature.initSign(privateKey);
-            signature.update(data);
-            return signature.sign();
-        } catch (Exception e) {
-            throw new RuntimeException("Error generating digital signature: " + e.getMessage(), e);
-        }
-    }
-
-
-    private void saveSignedCertificate(String folderPath) {
-        String sourceFilePath = "CertificateStorage\\certificate" + username + ".txt";
-        String destinationFilePath = "CertificateStorageSigned\\certificate" + username + ".txt";
-
-        Path sourcePath = Paths.get(sourceFilePath);
-        if (!Files.exists(sourcePath)) {
-            System.err.println("Source file does not exist: " + sourceFilePath);
-            return;
-        }
-
-        try {
-            Path destinationPath = Paths.get(destinationFilePath);
-            if (!Files.exists(destinationPath)) {
-                Files.createDirectories(destinationPath.getParent());
-                Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("Signed certificate saved to: " + destinationFilePath);
+            if (message instanceof CommandMessage commandMessage) {
+                if (commandMessage.getContent() == CommandType.REQUEST_PUBLIC_KEY) {
+                    handlePublicKeyRequest();
+                } else if (commandMessage.getContent() == CommandType.REQUEST_CERTIFICATE_SIGN) {
+                    handleSignRequest();
+                } else {
+                    Logger.error("Comando inválido.");
+                }
             } else {
-                System.err.println("Destination file already exists: " + destinationFilePath);
+                Logger.error("Mensagem inválida.");
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Error saving signed certificate: " + e.getMessage(), e);
+
+            Logger.log("Mensagem recebida de \"%s\": \"%s\"", message.getSender(), message.getContent());
         }
+
+        private void handlePublicKeyRequest() {
+            try {
+                sendPublicKey();
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar chave pública: " + e.getMessage());
+                closeConnection();
+            }
+        }
+
+        private void sendPublicKey() throws ConnectionException {
+            Logger.log("A enviar chave pública...");
+
+            KeyMessage keyMessage = new KeyMessage(publicKey);
+            sendMessage(keyMessage);
+
+            Logger.log("Chave pública enviada com sucesso.");
+        }
+
+        private void handleSignRequest() {
+            try {
+                signCertificate(username);
+            } catch (InvalidCertificateException e) {
+                Logger.error("Ocorreu um erro ao assinar o certificado: " + e.getMessage());
+                try {
+                    sendSignResponse(false);
+                } catch (ConnectionException ex) {
+                    Logger.error("Ocorreu um erro ao enviar resposta do certificado: " + ex.getMessage());
+                } finally {
+                    closeConnection();
+                }
+                return;
+            }
+
+            try {
+                sendSignResponse(true);
+            } catch (ConnectionException e) {
+                Logger.error("Ocorreu um erro ao enviar resposta do certificado: " + e.getMessage());
+                closeConnection();
+                return;
+            }
+        }
+
+        private void signCertificate(String username) throws InvalidCertificateException {
+            Logger.log("A assinar certificado para \"%s\"...", username);
+
+            Certificate certificate;
+
+            try {
+                certificate = CertificateReader.readCertificate(Config.CA_PATH + "/" + username + ".pem");
+                certificate = CertificateSigner.signCertificate(certificate, privateKey);
+                CertificateWriter.writeCertificate(certificate, Config.CA_PATH + "/" + username + ".pem");
+            } catch (Exception e) {
+                throw new InvalidCertificateException(e);
+            }
+
+            Logger.log("Certificado assinado com sucesso.");
+        }
+
+        private void sendSignResponse(boolean response) throws ConnectionException {
+            Logger.log("A enviar resposta de assinatura de certificado...");
+
+            BooleanMessage responseMessage = new BooleanMessage(response);
+            sendMessage(responseMessage);
+
+            Logger.log("Resposta de assinatura de certificado enviada com sucesso.");
+        }
+
+        public void sendMessage(Message message) throws ConnectionException {
+            synchronized (out) {
+                try {
+                    Logger.log("A enviar mensagem para \"%s\": \"%s\"", username, message.getContent());
+                    out.writeObject(message);
+                    out.flush();
+                    Logger.log("Mensagem enviada com sucesso.");
+                } catch (IOException e) {
+                    throw new ConnectionException(e);
+                }
+            }
+        }
+
     }
-
-
-    public void sendMessage(){
-
-
-
-    }
-
 
 }
-
-
-
-
-
-

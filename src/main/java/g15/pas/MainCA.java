@@ -1,8 +1,9 @@
 package g15.pas;
 
-import g15.pas.ca.CertificateAuthority;
 import g15.pas.exceptions.KeyPairCreationException;
+import g15.pas.server.CertificateAuthority;
 import g15.pas.utils.Config;
+import g15.pas.utils.Logger;
 
 import java.io.IOException;
 
@@ -16,10 +17,9 @@ public class MainCA {
         try {
             CertificateAuthority ca = new CertificateAuthority(Config.CA_PORT);
             ca.start();
-        } catch (IOException e) {
-            System.err.println("Ocorreu um erro ao criar o servidor: " + e.getMessage());
-        } catch (KeyPairCreationException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | KeyPairCreationException e) {
+            Logger.error("Ocorreu um erro ao criar a CA: " + e.getMessage());
         }
     }
+
 }

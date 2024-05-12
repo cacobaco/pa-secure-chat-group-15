@@ -5,4 +5,6 @@ package g15.pas.message.enums;
  */
 public enum CommandType {
     REQUEST_CERTIFICATE,
+    REQUEST_CERTIFICATE_SIGN,
+    REQUEST_PUBLIC_KEY,
 }

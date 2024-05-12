@@ -6,15 +6,12 @@ import g15.pas.exceptions.InvalidCommandException;
 import g15.pas.exceptions.KeyPairCreationException;
 import g15.pas.message.Message;
 import g15.pas.message.enums.CommandType;
-import g15.pas.message.messages.BooleanMessage;
-import g15.pas.message.messages.CertificateMessage;
-import g15.pas.message.messages.CommandMessage;
-import g15.pas.message.messages.TextMessage;
-import g15.pas.utils.Certificate;
-import g15.pas.utils.Encryption;
-import g15.pas.utils.Logger;
+import g15.pas.message.messages.*;
+import g15.pas.utils.*;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -34,23 +31,21 @@ public class Client {
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
 
-    private final Certificate certificate;
+    private Certificate certificate;
 
     private final String username;
     private final String serverHost;
     private final int serverPort;
-
+    private final String caHost;
+    private final int caPort;
 
     private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
-    private Thread serverListener;
 
-    private Socket socketCA;
-    private ObjectOutputStream outCA;
-   // private ObjectInputStream inCA;
-    private final String caHost;
-    private final int caPort;
+    private PublicKey caPublicKey;
+
+    private Thread serverListener;
 
     /**
      * Constructs a new Client with the specified username, server host, and server port.
@@ -59,16 +54,16 @@ public class Client {
      * @param username   the username of the client
      * @param serverHost the host of the server
      * @param serverPort the port of the server
+     * @param caHost     the host of the certificate authority
+     * @param caPort     the port of the certificate authority
      * @throws KeyPairCreationException if an error occurs while generating the key pair
      */
     public Client(String username, String serverHost, int serverPort, String caHost, int caPort) throws KeyPairCreationException {
         this.username = username;
         this.serverHost = serverHost;
         this.serverPort = serverPort;
-
         this.caHost = caHost;
         this.caPort = caPort;
-
 
         // Create key pair
         Logger.log("A gerar par de chaves...");
@@ -86,7 +81,6 @@ public class Client {
         Logger.log("A gerar certificado...");
         this.certificate = new Certificate(username, publicKey);
         Logger.log("Certificado gerado com sucesso.");
-
     }
 
     /**
@@ -108,22 +102,43 @@ public class Client {
             connectToCertificateAuthority();
         } catch (ConnectionException e) {
             Logger.error("Ocorreu um erro ao conectar à autoridade de certificação: " + e.getMessage());
-            try {
-                disconnectFromCertificateAuthority();
-            } catch (ConnectionException ex) {
-                Logger.error("Ocorreu um erro ao desconectar da autoridade de certificação: " + ex.getMessage());
-            }
+            disconnectFromCertificateAuthority();
             return;
         }
-        messageCA() ;
-        requestCertificateSignature(certificate, "CertificateStorage");
 
         try {
-            disconnectFromCertificateAuthority();
+            requestCAPublicKey();
         } catch (ConnectionException e) {
-            Logger.error("Ocorreu um erro ao desconectar da autoridade de certificação: " + e.getMessage());
+            Logger.error("Ocorreu um erro ao pedir chave pública da CA: " + e.getMessage());
+            disconnectFromCertificateAuthority();
             return;
         }
+
+        try {
+            receiveCAPublicKey();
+        } catch (ConnectionException e) {
+            Logger.error("Ocorreu um erro ao receber chave pública da CA: " + e.getMessage());
+            disconnectFromCertificateAuthority();
+            return;
+        }
+
+        try {
+            requestCertificateSignature();
+        } catch (InvalidCertificateException e) {
+            Logger.error("Ocorreu um erro ao pedir assinatura do certificado: " + e.getMessage());
+            disconnectFromCertificateAuthority();
+            return;
+        }
+
+        try {
+            receiveCertificateSignature();
+        } catch (InvalidCertificateException e) {
+            Logger.error("Ocorreu um erro ao receber a assinatura do certificado: " + e.getMessage());
+            disconnectFromCertificateAuthority();
+            return;
+        }
+
+        disconnectFromCertificateAuthority();
 
         try {
             connectToServer();
@@ -149,18 +164,16 @@ public class Client {
             return;
         }
 
-        /*try {
+        try {
             requestCertificates();
         } catch (ConnectionException e) {
             Logger.error("Ocorreu um erro ao pedir certificados: " + e.getMessage());
             disconnectFromServer();
             return;
-        }*/
+        }
 
         serverListener = new Thread(new ServerListener());
         serverListener.start();
-
-
 
         Scanner scanner = new Scanner(System.in);
 
@@ -191,82 +204,94 @@ public class Client {
      * @throws ConnectionException if an error occurs while connecting to the certificate authority
      */
     private void connectToCertificateAuthority() throws ConnectionException {
-        // TODO implement
         try {
-            Logger.log("A conectar a autoridade de certificação...");
-            socketCA = new Socket(caHost, caPort);
-            outCA = new ObjectOutputStream(socketCA.getOutputStream());
-            //inCA = new ObjectInputStream(socketCA.getInputStream());
-            Logger.log("Conexão a autoridade de certificação estabelecida com sucesso.");
+            Logger.log("A conectar à CA...");
+            socket = new Socket(caHost, caPort);
+            out = new ObjectOutputStream(socket.getOutputStream());
+            in = new ObjectInputStream(socket.getInputStream());
+            Logger.log("Conexão à CA estabelecida com sucesso.");
         } catch (IOException e) {
-            Logger.error("Erro ao conectar a autoridade de certificação: " + e.getMessage());
             throw new ConnectionException(e);
         }
     }
 
-    private void messageCA() {
-        String messageCA=username;
-        try {
+    private void requestCAPublicKey() throws ConnectionException {
+        Logger.log("A pedir chave pública da CA...");
 
-            outCA.writeObject(messageCA); // Envia a mensagem para o CertificateAuthority
-            outCA.flush(); // Limpa o buffer de saída
-            System.out.println("Mensagem enviada para o CertificateAuthority: " + messageCA);
-        } catch (IOException e) {
-            System.err.println("Erro ao enviar mensagem para o CertificateAuthority: " + e.getMessage());
-        }
+        CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_PUBLIC_KEY, username);
+        sendMessage(commandMessage);
+
+        Logger.log("Pedido de chave pública da CA enviado com sucesso.");
     }
 
+    private void receiveCAPublicKey() throws ConnectionException {
+        try {
+            Logger.log("A receber chave pública da CA...");
 
+            KeyMessage keyMessage = (KeyMessage) in.readObject();
 
+            caPublicKey = (PublicKey) keyMessage.getContent();
+
+            Logger.log("Chave pública da CA recebida com sucesso.");
+        } catch (IOException | ClassNotFoundException e) {
+            throw new ConnectionException(e);
+        }
+    }
 
     /**
      * Requests a certificate signature from the certificate authority.
      */
-    private void requestCertificateSignature(Certificate certificate, String folderPath) {
-        // TODO implement
-
+    private void requestCertificateSignature() throws InvalidCertificateException {
         try {
+            Logger.log("A pedir assinatura do certificado...");
 
-            File folder = new File(folderPath);
-            if (!folder.exists()) {
-                folder.mkdirs(); // Create the folder if it doesn't exist
-            }
+            Logger.log("A enviar certificado para assinatura...");
 
-            String fileName = "certificate" + username + ".txt";
-            File certificateFile = new File(folder, fileName);
+            CertificateWriter.writeCertificate(certificate, Config.CA_PATH + "/" + username + ".pem");
 
-            StringBuilder certificateContent = new StringBuilder();
-            certificateContent.append("Username: ").append(username).append("\n");
-            certificateContent.append("Public Key: ").append(publicKey).append("\n");
+            Logger.log("Certificado enviado com sucesso.");
 
+            CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_CERTIFICATE_SIGN, username);
+            sendMessage(commandMessage);
 
-            try (FileWriter writer = new FileWriter(certificateFile)) {
-                writer.write(certificateContent.toString());
-            }
-
-
-            System.out.println("Certificado salvo: " + certificateFile.getAbsolutePath());
-        } catch (IOException e) {
-            System.err.println("Error saving certificate to folder: " + e.getMessage());
+            Logger.log("Pedido de assinatura do certificado enviado com sucesso.");
+        } catch (Exception e) {
+            throw new InvalidCertificateException(e);
         }
-
     }
 
+    private void receiveCertificateSignature() throws InvalidCertificateException {
+        try {
+            Logger.log("A receber assinatura do certificado...");
+
+            Logger.log("A receber resposta booleana da CA...");
+
+            BooleanMessage responseMessage = (BooleanMessage) in.readObject();
+
+            if (!responseMessage.getContent()) {
+                throw new InvalidCertificateException();
+            }
+
+            Logger.log("Resposta booleana recebida com sucesso.");
+
+            certificate = CertificateReader.readCertificate(Config.CA_PATH + "/" + username + ".pem");
+
+            Logger.log("Assinatura do certificado recebida com sucesso.");
+        } catch (Exception e) {
+            throw new InvalidCertificateException(e);
+        }
+    }
 
     /**
      * Disconnects the client from the certificate authority.
-     *
-     * @throws ConnectionException if an error occurs while disconnecting from the certificate authority
      */
-    private void disconnectFromCertificateAuthority() throws ConnectionException {
-        // TODO implement
+    private void disconnectFromCertificateAuthority() {
         try {
             Logger.log("A desconectar da autoridade de certificação...");
 
-            //if (caListener != null) caListener.interrupt();
-            //if (inCA != null) in.close();
-            if (outCA != null) outCA.close();
-            if (socketCA != null) socketCA.close();
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null) socket.close();
 
             Logger.log("Desconectado da autoridade de certificação.");
         } catch (IOException e) {
@@ -421,7 +446,7 @@ public class Client {
             if (username.equals(certificateMessage.getSender())) return;
 
             Certificate receivedCertificate = certificateMessage.getContent();
-            validateCertificate(receivedCertificate); // TODO implement
+            validateCertificate(receivedCertificate);
             certificates.put(receivedCertificate.getUsername(), receivedCertificate);
         }
 
@@ -450,8 +475,20 @@ public class Client {
         /**
          * Validates a given certificate.
          */
-        private void validateCertificate(Certificate certificate) {
-            // TODO implement
+        private void validateCertificate(Certificate certificate) throws InvalidCertificateException {
+            try {
+                Logger.log("A validar certificado de \"%s\"...", certificate.getUsername());
+
+                boolean valid = CertificateSigner.verifyCertificate(certificate, caPublicKey);
+
+                if (!valid) {
+                    throw new InvalidCertificateException("Certificado não passou na validação.");
+                }
+
+                Logger.log("Certificado de \"%s\" validado com sucesso.", certificate.getUsername());
+            } catch (Exception e) {
+                throw new InvalidCertificateException("Certificado não passou na validação.", e);
+            }
         }
 
     }

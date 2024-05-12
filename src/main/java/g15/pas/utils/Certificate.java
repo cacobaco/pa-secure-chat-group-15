@@ -2,18 +2,16 @@ package g15.pas.utils;
 
 import java.io.Serializable;
 import java.security.PublicKey;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * This class represents a Certificate which implements Serializable.
- * It contains a username, a public key, and a map for additional information.
+ * It contains a username, a public key;
  */
 public class Certificate implements Serializable {
 
     private final String username;
     private final PublicKey publicKey;
-    private final Map<String, String> additionalInfo;
+    private byte[] signature;
 
     /**
      * Constructor for Certificate with username and publicKey.
@@ -24,7 +22,19 @@ public class Certificate implements Serializable {
     public Certificate(String username, PublicKey publicKey) {
         this.username = username;
         this.publicKey = publicKey;
-        this.additionalInfo = new HashMap<>();
+    }
+
+    /**
+     * Constructor for Certificate with username, publicKey and signature.
+     *
+     * @param username  The username associated with the certificate
+     * @param publicKey The public key associated with the certificate
+     * @param signature The signature associated with the certificate
+     */
+    public Certificate(String username, PublicKey publicKey, byte[] signature) {
+        this.username = username;
+        this.publicKey = publicKey;
+        this.signature = signature;
     }
 
     /**
@@ -46,22 +56,21 @@ public class Certificate implements Serializable {
     }
 
     /**
-     * Getter for additionalInfo.
+     * Getter for signature.
      *
-     * @return The map containing additional information associated with the certificate
+     * @return The signature associated with the certificate
      */
-    public Map<String, String> getAdditionalInfo() {
-        return additionalInfo;
+    public byte[] getSignature() {
+        return signature;
     }
 
     /**
-     * Method to add additional information to the certificate.
+     * Setter for signature.
      *
-     * @param key   The key for the additional information
-     * @param value The value for the additional information
+     * @param signature The signature to be set
      */
-    public void addAdditionalInfo(String key, String value) {
-        this.additionalInfo.put(key, value);
+    public void setSignature(byte[] signature) {
+        this.signature = signature;
     }
 
 }
