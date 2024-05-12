@@ -36,6 +36,7 @@ public class CertificateSigner {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
 
+        objectOutputStream.writeObject(certificate.getSerialNumber());
         objectOutputStream.writeObject(certificate.getUsername());
         objectOutputStream.writeObject(certificate.getPublicKey());
 
