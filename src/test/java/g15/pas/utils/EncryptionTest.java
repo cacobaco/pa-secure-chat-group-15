@@ -4,48 +4,57 @@ import org.junit.jupiter.api.Test;
 
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class EncryptionTest {
 
     @Test
-    void shouldGenerateValidKeyPair() throws NoSuchAlgorithmException {
-        KeyPair keyPair = Encryption.generateKeyPair();
-        assertNotNull(keyPair);
-        assertNotNull(keyPair.getPrivate());
-        assertNotNull(keyPair.getPublic());
-    }
-
-    @Test
-    void shouldSuccessfullyEncryptAndDecryptMessage() throws Exception {
-        KeyPair keyPair = Encryption.generateKeyPair();
+    void shouldSuccessfullyEncryptAndDecryptMessageWithAES() throws Exception {
         String originalMessage = "Hello, World!";
-        byte[] encryptedMessage = Encryption.encrypt(originalMessage, keyPair.getPublic());
-        String decryptedMessage = Encryption.decrypt(encryptedMessage, keyPair.getPrivate());
-        assertEquals(originalMessage, decryptedMessage);
+        byte[] secretKey = new byte[16];
+        new Random().nextBytes(secretKey); // generate a random AES key
+        byte[] encryptedMessage = Encryption.encryptAES(originalMessage.getBytes(), secretKey);
+        byte[] decryptedMessage = Encryption.decryptAES(encryptedMessage, secretKey);
+        assertEquals(originalMessage, new String(decryptedMessage));
     }
 
     @Test
-    void shouldFailDecryptionWithWrongKey() throws Exception {
-        KeyPair keyPair1 = Encryption.generateKeyPair();
-        KeyPair keyPair2 = Encryption.generateKeyPair();
+    void shouldFailDecryptionWithWrongAESKey() throws Exception {
         String originalMessage = "Hello, World!";
-        byte[] encryptedMessage = Encryption.encrypt(originalMessage, keyPair1.getPublic());
-
-        assertThrows(Exception.class, () -> Encryption.decrypt(encryptedMessage, keyPair2.getPrivate()));
+        byte[] secretKey1 = new byte[16];
+        new Random().nextBytes(secretKey1); // generate a random AES key
+        byte[] secretKey2 = new byte[16];
+        new Random().nextBytes(secretKey2); // generate a different random AES key
+        byte[] encryptedMessage = Encryption.encryptAES(originalMessage.getBytes(), secretKey1);
+        assertThrows(Exception.class, () -> Encryption.decryptAES(encryptedMessage, secretKey2));
     }
 
     @Test
-    void shouldFailEncryptionWithNullMessage() throws NoSuchAlgorithmException {
-        KeyPair keyPair = Encryption.generateKeyPair();
-        assertThrows(Exception.class, () -> Encryption.encrypt(null, keyPair.getPublic()));
+    void shouldFailEncryptionWithNullAESMessage() {
+        byte[] secretKey = new byte[16];
+        new Random().nextBytes(secretKey); // generate a random AES key
+        assertThrows(Exception.class, () -> Encryption.encryptAES(null, secretKey));
     }
 
     @Test
-    void shouldFailDecryptionWithNullMessage() throws NoSuchAlgorithmException {
-        KeyPair keyPair = Encryption.generateKeyPair();
-        assertThrows(Exception.class, () -> Encryption.decrypt(null, keyPair.getPrivate()));
+    void shouldFailDecryptionWithNullAESMessage() {
+        byte[] secretKey = new byte[16];
+        new Random().nextBytes(secretKey); // generate a random AES key
+        assertThrows(Exception.class, () -> Encryption.decryptAES(null, secretKey));
+    }
+
+    @Test
+    void shouldFailEncryptionWithNullAESKey() {
+        String originalMessage = "Hello, World!";
+        assertThrows(Exception.class, () -> Encryption.encryptAES(originalMessage.getBytes(), null));
+    }
+
+    @Test
+    void shouldFailDecryptionWithNullAESKey() {
+        byte[] encryptedMessage = new byte[16];
+        assertThrows(Exception.class, () -> Encryption.decryptAES(encryptedMessage, null));
     }
 
 }
