@@ -1,11 +1,9 @@
 package g15.pas.client;
 
-import g15.pas.exceptions.ConnectionException;
-import g15.pas.exceptions.InvalidCertificateException;
-import g15.pas.exceptions.InvalidCommandException;
-import g15.pas.exceptions.KeyPairCreationException;
+import g15.pas.exceptions.*;
 import g15.pas.message.Message;
 import g15.pas.message.enums.CommandType;
+import g15.pas.message.enums.InfoType;
 import g15.pas.message.messages.*;
 import g15.pas.utils.*;
 
@@ -394,7 +392,14 @@ public class Client {
      * @throws Exception if an error occurs during the encryption or sending of the Diffie-Hellman key
      */
     private void sendEncryptedDHKey(String recipient) throws Exception {
-        EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
+        PublicKey recipientPublicKey = getRecipientPublicKey(recipient);
+
+        if (recipientPublicKey == null) {
+            return;
+        }
+
+        EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), recipientPublicKey), username, new String[]{recipient});
+
         out.writeObject(encryptedDHKey);
     }
 
@@ -442,7 +447,14 @@ public class Client {
 
                 byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
                 byte[] encryptedMessage = Encryption.encryptAES(messageBytes, sharedSecrets.get(recipient).toByteArray());
-                byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient));
+
+                PublicKey recipientPublicKey = getRecipientPublicKey(recipient);
+
+                if (recipientPublicKey == null) {
+                    continue;
+                }
+
+                byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), recipientPublicKey);
                 EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
                 out.writeObject(encryptedMessageObject);
                 out.flush();
@@ -458,7 +470,8 @@ public class Client {
         Certificate recipientCertificate = certificates.get(recipientUsername);
 
         if (recipientCertificate == null) {
-            throw new IllegalArgumentException("Não existe nenhum certificado para o cliente: " + recipientUsername);
+            Logger.error("Não existe nenhum certificado para o cliente: " + recipientUsername);
+            return null;
         }
 
         return recipientCertificate.getPublicKey();
@@ -523,6 +536,8 @@ public class Client {
         }
 
         private void handleMessage(Message message) throws Exception {
+            if (message.getSender() != null && message.getSender().equals(username)) return;
+
             if (message instanceof CertificateMessage certificateMessage) {
                 try {
                     handleCertificateMessage(certificateMessage);
@@ -541,6 +556,12 @@ public class Client {
                 handleEncryptedMessage(encryptedMessage);
             } else if (message instanceof EncryptedDHKeyMessage encryptedDHKeyMessage) {
                 handleEncryptedDHKeyMessage(encryptedDHKeyMessage);
+            } else if (message instanceof InfoMessage infoMessage) {
+                try {
+                    handleInfoMessage(infoMessage);
+                } catch (InvalidInfoException e) {
+                    Logger.error("Ocorreu um erro ao processar a informação: " + e.getMessage());
+                }
             } else {
                 Logger.error("Mensagem inválida recebida: %s" + message.getClass().getSimpleName());
             }
@@ -551,16 +572,12 @@ public class Client {
         }
 
         private void handleCertificateMessage(CertificateMessage certificateMessage) throws InvalidCertificateException {
-            if (username.equals(certificateMessage.getSender())) return;
-
             Certificate receivedCertificate = certificateMessage.getContent();
             validateCertificate(receivedCertificate);
             certificates.put(receivedCertificate.getUsername(), receivedCertificate);
         }
 
         private void handleCommandMessage(CommandMessage commandMessage) throws InvalidCommandException {
-            if (username.equals(commandMessage.getSender())) return;
-
             if (commandMessage.getContent() == CommandType.REQUEST_CERTIFICATE) {
                 String[] recipients = new String[]{commandMessage.getSender()};
                 CertificateMessage response = new CertificateMessage(certificate, username, recipients);
@@ -605,6 +622,18 @@ public class Client {
 
             String messageString = new String(decryptedMessage, StandardCharsets.UTF_8);
             Logger.log(messageString);
+        }
+
+        private void handleInfoMessage(InfoMessage infoMessage) throws InvalidInfoException {
+            if (infoMessage.getContent() == InfoType.LOGOUT) {
+                certificates.remove(infoMessage.getSender());
+                sharedSecrets.remove(infoMessage.getSender());
+
+                Date date = new Date();
+                Logger.log("[%s] O utilizador \"%s\" desligou-se do chat.", date, infoMessage.getSender());
+            } else {
+                throw new InvalidInfoException("Info inválida recebida: %s" + infoMessage.getContent());
+            }
         }
 
         /**
