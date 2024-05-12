@@ -201,6 +201,11 @@ public class Client {
         do {
             String message = scanner.nextLine();
 
+            if (CertificateRevoker.isRevoked(certificate)) {
+                Logger.error("Certificado revogado. Não é possível enviar mensagens.");
+                break;
+            }
+
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {
