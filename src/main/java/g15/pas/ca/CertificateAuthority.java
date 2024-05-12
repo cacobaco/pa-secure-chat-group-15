@@ -1,4 +1,4 @@
-package g15.pas.server;
+package g15.pas.ca;
 
 import g15.pas.exceptions.ConnectionException;
 import g15.pas.exceptions.InvalidCertificateException;
