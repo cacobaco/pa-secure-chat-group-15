@@ -5,19 +5,19 @@ import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 
 /**
- * This class implements the generation and verification of the message MAC.
+ * This class provides utility methods for generating and verifying Message Authentication Codes (MACs) using the HmacSHA256 algorithm.
  */
 public class Integrity {
 
     private static final String MAC_ALGORITHM = "HmacSHA256";
 
     /**
-     * Computes the message MAC of the given message.
+     * Generates a MAC for a given message using a given key.
      *
-     * @param message The message to be digested.
-     * @param macKey  the secret key for the MAC algorithm
-     * @return the message MAC
-     * @throws Exception if the message MAC algorithm is not available
+     * @param message the message for which the MAC is to be generated
+     * @param macKey  the key to be used for MAC generation
+     * @return the generated MAC
+     * @throws Exception if an error occurs during MAC generation
      */
     public static byte[] generateMAC(byte[] message, byte[] macKey) throws Exception {
         SecretKeySpec secretKeySpec = new SecretKeySpec(macKey, MAC_ALGORITHM);
@@ -27,11 +27,11 @@ public class Integrity {
     }
 
     /**
-     * Verifies the message authentication code (MAC) of the message.
+     * Verifies a MAC against a computed MAC.
      *
-     * @param mac         the message authentication code
-     * @param computedMac the computed message authentication code
-     * @return true if the message authentication codes are equal, false otherwise
+     * @param mac         the MAC to be verified
+     * @param computedMac the computed MAC against which the MAC is to be verified
+     * @return true if the MACs are equal, false otherwise
      */
     public static boolean verifyMAC(byte[] mac, byte[] computedMac) {
         return Arrays.equals(mac, computedMac);

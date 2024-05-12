@@ -5,8 +5,8 @@ import java.security.PublicKey;
 import java.util.UUID;
 
 /**
- * This class represents a Certificate which implements Serializable.
- * It contains a username, a public key;
+ * This class represents a Certificate which is used for secure communication.
+ * It implements Serializable interface for easy transmission of its instances.
  */
 public class Certificate implements Serializable {
 
@@ -17,10 +17,10 @@ public class Certificate implements Serializable {
     private byte[] signature;
 
     /**
-     * Constructor for Certificate with username and publicKey.
+     * Constructor for creating a Certificate with a random serial number.
      *
-     * @param username  The username associated with the certificate
-     * @param publicKey The public key associated with the certificate
+     * @param username  the username associated with the certificate
+     * @param publicKey the public key associated with the certificate
      */
     public Certificate(String username, PublicKey publicKey) {
         this.serialNumber = UUID.randomUUID().toString();
@@ -29,11 +29,11 @@ public class Certificate implements Serializable {
     }
 
     /**
-     * Constructor for Certificate with serialNumber, username and publicKey.
+     * Constructor for creating a Certificate with a specific serial number.
      *
-     * @param serialNumber The serial number associated with the certificate
-     * @param username     The username associated with the certificate
-     * @param publicKey    The public key associated with the certificate
+     * @param serialNumber the serial number of the certificate
+     * @param username     the username associated with the certificate
+     * @param publicKey    the public key associated with the certificate
      */
     public Certificate(String serialNumber, String username, PublicKey publicKey) {
         this.serialNumber = serialNumber;
@@ -42,63 +42,53 @@ public class Certificate implements Serializable {
     }
 
     /**
-     * Getter for serialNumber.
-     *
-     * @return The serial number associated with the certificate
+     * @return the serial number of the certificate
      */
     public String getSerialNumber() {
         return serialNumber;
     }
 
     /**
-     * Getter for username.
-     *
-     * @return The username associated with the certificate
+     * @return the username associated with the certificate
      */
     public String getUsername() {
         return username;
     }
 
     /**
-     * Getter for publicKey.
-     *
-     * @return The public key associated with the certificate
+     * @return the public key associated with the certificate
      */
     public PublicKey getPublicKey() {
         return publicKey;
     }
 
     /**
-     * Getter for expirationDate.
-     *
-     * @return The expiration date associated with the certificate
+     * @return the expiration date of the certificate
      */
     public Long getExpirationDate() {
         return expirationDate;
     }
 
     /**
-     * Setter for expirationDate.
+     * Sets the expiration date of the certificate.
      *
-     * @param expirationDate The expiration date to be set
+     * @param expirationDate the expiration date to be set
      */
     public void setExpirationDate(Long expirationDate) {
         this.expirationDate = expirationDate;
     }
 
     /**
-     * Getter for signature.
-     *
-     * @return The signature associated with the certificate
+     * @return the signature of the certificate
      */
     public byte[] getSignature() {
         return signature;
     }
 
     /**
-     * Setter for signature.
+     * Sets the signature of the certificate.
      *
-     * @param signature The signature to be set
+     * @param signature the signature to be set
      */
     public void setSignature(byte[] signature) {
         this.signature = signature;

@@ -4,37 +4,39 @@ import g15.pas.message.Message;
 import g15.pas.message.enums.CommandType;
 
 /**
- * This class extends the Message class with CommandType as the type parameter.
- * It represents a command message that can be sent from a sender to multiple recipients.
- * The content of a CommandMessage is a CommandType, which represents the type of command.
+ * This class represents a command message that extends the Message class.
+ * The message content is of type CommandType.
+ * It provides constructors to create a CommandMessage with a command, sender, and recipients.
  */
 public class CommandMessage extends Message<CommandType> {
 
     /**
-     * Constructor for CommandMessage with only content.
+     * Constructs a new CommandMessage with the specified command.
+     * The sender and recipients are set to null.
      *
-     * @param command The content of the message
+     * @param command the command of the message
      */
     public CommandMessage(CommandType command) {
         super(command);
     }
 
     /**
-     * Constructor for CommandMessage with content and sender.
+     * Constructs a new CommandMessage with the specified command and sender.
+     * The recipients are set to null.
      *
-     * @param command The content of the message
-     * @param sender  The sender of the message
+     * @param command the command of the message
+     * @param sender  the sender of the message
      */
     public CommandMessage(CommandType command, String sender) {
         super(command, sender);
     }
 
     /**
-     * Constructor for CommandMessage with content, sender, and recipients.
+     * Constructs a new CommandMessage with the specified command, sender, and recipients.
      *
-     * @param command    The content of the message
-     * @param sender     The sender of the message
-     * @param recipients The recipients of the message
+     * @param command    the command of the message
+     * @param sender     the sender of the message
+     * @param recipients the recipients of the message
      */
     public CommandMessage(CommandType command, String sender, String[] recipients) {
         super(command, sender, recipients);

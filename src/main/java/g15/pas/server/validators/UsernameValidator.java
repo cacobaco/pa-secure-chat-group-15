@@ -3,19 +3,19 @@ package g15.pas.server.validators;
 import g15.pas.utils.Config;
 
 /**
- * This class provides a static method to validate usernames.
- * The validation rules are:
- * - The username must not be null.
- * - The length of the username must be between the minimum and maximum lengths defined in the Config class.
- * - The username must match the regular expression defined in the Config class.
+ * This class provides a utility method for validating usernames.
+ * It checks if the username is not null, if its length is within the specified limits,
+ * and if it matches the specified regular expression.
  */
 public class UsernameValidator {
 
     /**
-     * Validates a username based on the rules defined in the Config class.
+     * Checks if a given username is valid.
+     * A username is considered valid if it is not null, its length is within the specified limits,
+     * and it matches the specified regular expression.
      *
-     * @param username The username to be validated.
-     * @return true if the username is valid, false otherwise.
+     * @param username the username to be validated
+     * @return true if the username is valid, false otherwise
      */
     public static boolean isValid(String username) {
         return username != null

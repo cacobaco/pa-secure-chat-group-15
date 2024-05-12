@@ -1,7 +1,8 @@
 package g15.pas.utils;
 
 /**
- * This class contains constants that are used throughout the project.
+ * This class provides a centralized location for constant values used throughout the project.
+ * It provides static access to these constant values.
  */
 public class Constants {
 

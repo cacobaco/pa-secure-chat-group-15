@@ -1,8 +1,9 @@
 package g15.pas.exceptions;
 
 /**
- * This class represents a custom exception that is thrown when a key pair creation error occurs.
- * It extends the Exception class and includes a static code and message for the key pair creation error.
+ * This class represents a key pair creation exception that extends the Exception class.
+ * It provides several constructors to create a KeyPairCreationException with a message, cause, or both.
+ * It also contains a static final code and message for a key pair creation error.
  */
 public class KeyPairCreationException extends Exception {
 
@@ -10,39 +11,36 @@ public class KeyPairCreationException extends Exception {
     private static final String MESSAGE = "Ocorreu um erro ao gerar um par de chaves.";
 
     /**
-     * Default constructor for KeyPairCreationException.
-     * It initializes the superclass with the default message.
+     * Constructs a new KeyPairCreationException with the default key pair creation error message.
      */
     public KeyPairCreationException() {
         super(MESSAGE);
     }
 
     /**
-     * Constructor for KeyPairCreationException with a cause.
-     * It initializes the superclass with the default message and cause from the Throwable.
+     * Constructs a new KeyPairCreationException with the specified cause.
+     * The message is set to the default key pair creation error message.
      *
-     * @param cause The Throwable that caused the exception.
+     * @param cause the cause of the exception
      */
     public KeyPairCreationException(Throwable cause) {
         super(MESSAGE, cause);
     }
 
     /**
-     * Constructor for KeyPairCreationException with a custom message.
-     * It initializes the superclass with the custom message.
+     * Constructs a new KeyPairCreationException with the specified message.
      *
-     * @param message The custom message for the exception.
+     * @param message the message of the exception
      */
     public KeyPairCreationException(String message) {
         super(message);
     }
 
     /**
-     * Constructor for KeyPairCreationException with a custom message and a cause.
-     * It initializes the superclass with the custom message and the cause from the Throwable.
+     * Constructs a new KeyPairCreationException with the specified message and cause.
      *
-     * @param message The custom message for the exception.
-     * @param cause   The Throwable that caused the exception.
+     * @param message the message of the exception
+     * @param cause   the cause of the exception
      */
     public KeyPairCreationException(String message, Throwable cause) {
         super(message, cause);
