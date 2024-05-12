@@ -1,4 +1,4 @@
-package g15.pas.AutoridadeCertidicacao;
+package g15.pas.ca;
 
 import g15.pas.exceptions.KeyPairCreationException;
 import g15.pas.utils.Encryption;

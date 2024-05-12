@@ -1,6 +1,6 @@
 package g15.pas;
 
-import g15.pas.AutoridadeCertidicacao.CertificateAuthority;
+import g15.pas.ca.CertificateAuthority;
 import g15.pas.exceptions.KeyPairCreationException;
 import g15.pas.utils.Config;
 
