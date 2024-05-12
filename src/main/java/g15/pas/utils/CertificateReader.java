@@ -25,8 +25,12 @@ public class CertificateReader {
     private static Certificate convertFromPEM(String pemContent) throws Exception {
         String[] lines = pemContent.split("\n");
 
-        String encodedUsername = lines[1];
-        String encodedKey = lines[2];
+        String encodedSerialNumber = lines[1];
+        String encodedUsername = lines[2];
+        String encodedKey = lines[3];
+
+        byte[] serialNumberBytes = Base64.getDecoder().decode(encodedSerialNumber);
+        int serialNumber = Integer.parseInt(new String(serialNumberBytes));
 
         byte[] usernameBytes = Base64.getDecoder().decode(encodedUsername);
         String username = new String(usernameBytes);
@@ -34,13 +38,13 @@ public class CertificateReader {
         byte[] keyBytes = Base64.getDecoder().decode(encodedKey);
         PublicKey publicKey = Encryption.convertBytesToPublicKey(keyBytes);
 
-        Certificate certificate = new Certificate(username, publicKey);
+        Certificate certificate = new Certificate(serialNumber, username, publicKey);
 
-        if (lines.length == 4) {
+        if (lines.length == 5) {
             return certificate;
         }
 
-        String encodedSignature = lines[3];
+        String encodedSignature = lines[4];
         byte[] signature = Base64.getDecoder().decode(encodedSignature);
 
         certificate.setSignature(signature);
