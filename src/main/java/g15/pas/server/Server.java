@@ -77,15 +77,15 @@ public class Server {
     private void addClient(String username, ClientHandler clientHandler) {
         clients.put(username, clientHandler);
 
-        for (ClientHandler client : clients.values()) {
+        /*for (ClientHandler client : clients.values()) {
             try {
-                TextMessage message = new TextMessage("O utilizador \"" + username + "\" ligou-se ao chat.");
+                TextMessage message = new TextMessage("O utilizador \"" + username + "\" está a ligar-se ao chat...");
                 client.sendMessage(message);
             } catch (ConnectionException e) {
                 Logger.error("Ocorreu um erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
                 client.closeConnection();
             }
-        }
+        }*/
     }
 
     private void removeClient(String username) {

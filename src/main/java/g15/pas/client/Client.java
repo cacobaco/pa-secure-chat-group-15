@@ -30,12 +30,13 @@ public class Client {
 
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
+
     private BigInteger privateDHKey;
     private BigInteger publicDHKey;
-    private HashMap<String, BigInteger> SharedSecrets;
-    private final Map<String, Certificate> certificates = new HashMap<>();
+    private final HashMap<String, BigInteger> sharedSecrets = new HashMap<>();
 
     private Certificate certificate;
+    private final Map<String, Certificate> certificates = new HashMap<>();
 
     private final String username;
     private final String serverHost;
@@ -50,7 +51,6 @@ public class Client {
     private PublicKey caPublicKey;
 
     private Thread serverListener;
-
 
     /**
      * Constructs a new Client with the specified username, server host, and server port.
@@ -75,22 +75,22 @@ public class Client {
         KeyPair keyPair;
         try {
             keyPair = Encryption.generateKeyPair();
-        } catch (NoSuchAlgorithmException e) {
-            throw new KeyPairCreationException(e);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new KeyPairCreationException(e);
         }
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
         Logger.log("Par de chaves gerado com sucesso.");
+
+        // Create Diffie-Hellman key pair
+        Logger.log("A gerar par de chaves Diffie-Hellman...");
         try {
             this.privateDHKey = DiffieHellman.generatePrivateKey();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return;
+            throw new KeyPairCreationException(e);
         }
         this.publicDHKey = DiffieHellman.generatePublicKey(this.privateDHKey);
-        this.SharedSecrets = new HashMap<String, BigInteger>();
+        Logger.log("Par de chaves Diffie-Hellman gerado com sucesso.");
 
         // Create certificate
         Logger.log("A gerar certificado...");
@@ -190,25 +190,19 @@ public class Client {
         serverListener = new Thread(new ServerListener());
         serverListener.start();
 
-
+        try {
+            Thread.sleep(1000); // Allow server listener to process some messages
+        } catch (InterruptedException e) {
+            Logger.error("Ocorreu um erro ao esperar: " + e.getMessage());
+            disconnectFromServer();
+            return;
+        }
 
         Scanner scanner = new Scanner(System.in);
 
         do {
             String message = scanner.nextLine();
-            try {
-                Set<String> recipients = certificates.keySet();
-                for (String recipient : recipients){
-                    if (recipient.equals(username)) continue;
-                    else if (SharedSecrets.containsKey(recipient)) continue;
-                    sendEncryptedDHKey(recipient);
-                    Thread.sleep(100);
-                }
-            } catch (Exception e) {
-                Logger.error("Ocorreu um erro ao enviar chave DiffieHellman: " + e.getMessage());
-                disconnectFromServer();
-                return;
-            }
+
             try {
                 sendMessage(message);
             } catch (ConnectionException e) {
@@ -386,19 +380,6 @@ public class Client {
     }
 
     /**
-     * Receives an encrypted Diffie-Hellman key from another client.
-     * This method is used when the client receives a Diffie-Hellman key from another client who wants to establish a shared secret.
-     * It decrypts the Diffie-Hellman key, computes the shared secret, and stores it for future communication.
-     *
-     * @param encryptedDHKey the EncryptedDHKeyMessage containing the encrypted Diffie-Hellman key
-     * @throws Exception if an error occurs during the decryption or computation of the shared secret
-     */
-    private void receiveEncryptedDHKey(EncryptedDHKeyMessage encryptedDHKey) throws Exception {
-        if (SharedSecrets.containsKey(encryptedDHKey.getSender())) return;
-        SharedSecrets.put(encryptedDHKey.getSender(), DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(encryptedDHKey.getContent(), privateKey)), privateDHKey));
-    }
-
-    /**
      * Sends an encrypted Diffie-Hellman key to a list of recipients.
      * This method is used when the client wants to establish a shared secret with multiple other clients.
      * It encrypts the client's public Diffie-Hellman key with the public key of each recipient and sends it to them.
@@ -423,8 +404,8 @@ public class Client {
      */
     private void sendEncryptedDHKey(String[] recipients) throws Exception {
         List<String> recipientsList = List.of(recipients);
-        for(String recipient : recipientsList) {
-            if (SharedSecrets.containsKey(recipient)) continue;
+        for (String recipient : recipientsList) {
+            if (sharedSecrets.containsKey(recipient)) continue;
             EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
             out.writeObject(encryptedDHKey);
         }
@@ -440,39 +421,42 @@ public class Client {
         try {
             TextMessage textMessage = TextMessage.fromString(message, username);
             textMessage.format();
-            if (textMessage.getRecipients() != null) {
-                List<String> recipients = List.of(textMessage.getRecipients());
-                for(String recipient : recipients) {
-                    byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(recipient).toByteArray());
-                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient) );
-                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
-                    out.writeObject(encryptedMessageObject);
-                    out.flush();
-                }
-            } else {
-                Set<String> clients = certificates.keySet();
-                for (String recipient : clients) {
-                    if (!recipient.equals(username)){
-                    byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedMessage = Encryption.encryptAES(messageBytes, SharedSecrets.get(recipient).toByteArray());
-                    byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient) );
-                    EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
-                    out.writeObject(encryptedMessageObject);
-                    out.flush();
-                    }
-                }
 
+            String[] recipients;
+
+            if (textMessage.getRecipients() != null) {
+                recipients = textMessage.getRecipients();
+            } else {
+                recipients = certificates.keySet().toArray(new String[0]);
             }
 
+            recipients = Arrays.stream(recipients).filter(recipient -> !recipient.equals(username)).toArray(String[]::new);
+
+            for (String recipient : recipients) {
+                BigInteger sharedSecret = sharedSecrets.get(recipient);
+
+                if (sharedSecret == null) {
+                    sendEncryptedDHKey(recipient);
+                    continue;
+                }
+
+                byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
+                byte[] encryptedMessage = Encryption.encryptAES(messageBytes, sharedSecrets.get(recipient).toByteArray());
+                byte[] signature = Encryption.encryptRSA(Integrity.generateDigest(messageBytes), getRecipientPublicKey(recipient));
+                EncryptedMessage encryptedMessageObject = new EncryptedMessage(encryptedMessage, signature, username, new String[]{recipient});
+                out.writeObject(encryptedMessageObject);
+                out.flush();
+            }
+
+            Logger.log(textMessage.getContent());
         } catch (Exception e) {
             throw new ConnectionException(e);
         }
     }
 
     public PublicKey getRecipientPublicKey(String recipientUsername) {
-
         Certificate recipientCertificate = certificates.get(recipientUsername);
+
         if (recipientCertificate == null) {
             throw new IllegalArgumentException("Não existe nenhum certificado para o cliente: " + recipientUsername);
         }
@@ -518,9 +502,11 @@ public class Client {
      */
     private class ServerListener implements Runnable {
 
-
         @Override
         public void run() {
+            Date date = new Date();
+            Logger.log("[%s] O utilizador \"%s\" ligou-se ao chat.", date, username);
+
             while (true) {
                 try {
                     Message message = (Message) in.readObject();
@@ -543,6 +529,8 @@ public class Client {
                 } catch (InvalidCertificateException e) {
                     Logger.error("Ocorreu um erro ao processar o certificado: " + e.getMessage());
                 }
+
+                sendEncryptedDHKey(certificateMessage.getSender());
             } else if (message instanceof CommandMessage commandMessage) {
                 try {
                     handleCommandMessage(commandMessage);
@@ -555,26 +543,15 @@ public class Client {
                 handleEncryptedMessage(encryptedMessage);
             } else if (message instanceof EncryptedDHKeyMessage encryptedDHKeyMessage) {
                 handleEncryptedDHKeyMessage(encryptedDHKeyMessage);
-            }  else {
+            } else {
                 Logger.error("Mensagem inválida recebida: %s" + message.getClass().getSimpleName());
             }
         }
 
-        /**
-         * Handles an EncryptedDHKeyMessage received from the server.
-         * This method is responsible for processing the received Diffie-Hellman key, which is encrypted.
-         * If the shared secret with the sender is not already established, it sends back its own encrypted Diffie-Hellman key.
-         * Then, it receives the encrypted Diffie-Hellman key and stores the computed shared secret.
-         *
-         * @param message the EncryptedDHKeyMessage to handle
-         * @throws Exception if an error occurs during the processing of the encrypted Diffie-Hellman key
-         */
         private void handleEncryptedDHKeyMessage(EncryptedDHKeyMessage message) throws Exception {
-            if (!SharedSecrets.containsKey(message.getSender())) {
-                sendEncryptedDHKey(message.getSender());
-            }
-            receiveEncryptedDHKey(message);
+            sharedSecrets.put(message.getSender(), DiffieHellman.computeSecret(new BigInteger(Encryption.decryptRSA(message.getContent(), privateKey)), privateDHKey));
         }
+
         private void handleCertificateMessage(CertificateMessage certificateMessage) throws InvalidCertificateException {
             if (username.equals(certificateMessage.getSender())) return;
 
@@ -594,6 +571,12 @@ public class Client {
                     sendMessage(response);
                 } catch (ConnectionException e) {
                     Logger.error("Ocorreu um erro ao enviar o certificado: " + e.getMessage());
+                }
+            } else if (commandMessage.getContent() == CommandType.REQUEST_PUBLIC_DH_KEY) {
+                try {
+                    sendEncryptedDHKey(commandMessage.getSender());
+                } catch (Exception e) {
+                    Logger.error("Ocorreu um erro ao enviar a chave Diffie-Hellman: " + e.getMessage());
                 }
             } else {
                 throw new InvalidCommandException("Comando inválido recebido: %s" + commandMessage.getContent());
@@ -615,11 +598,13 @@ public class Client {
          * @throws Exception if an error occurs during decryption or integrity verification
          */
         private void handleEncryptedMessage(EncryptedMessage EncryptedMessage) throws Exception {
-            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), SharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
+            byte[] decryptedMessage = Encryption.decryptAES(EncryptedMessage.getContent(), sharedSecrets.get(EncryptedMessage.getSender()).toByteArray());
             byte[] decryptedSignature = Encryption.decryptRSA(EncryptedMessage.getSignature(), privateKey);
+
             if (!Integrity.verifyDigest(decryptedSignature, Integrity.generateDigest(decryptedMessage))) {
                 throw new RuntimeException("The message has been tampered with.");
             }
+
             String messageString = new String(decryptedMessage, StandardCharsets.UTF_8);
             Logger.log(messageString);
         }
@@ -638,6 +623,9 @@ public class Client {
                 }
 
                 Logger.log("Certificado de \"%s\" validado com sucesso.", certificate.getUsername());
+
+                Date date = new Date();
+                Logger.log("[%s] O utilizador \"%s\" ligou-se ao chat.", date, certificate.getUsername());
             } catch (Exception e) {
                 throw new InvalidCertificateException("Certificado não passou na validação.", e);
             }
