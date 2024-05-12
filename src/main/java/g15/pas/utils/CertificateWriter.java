@@ -34,7 +34,7 @@ public class CertificateWriter {
      * @param certificate the Certificate to be converted
      * @return the PEM content string
      */
-    private static String convertToPEM(Certificate certificate) {
+    static String convertToPEM(Certificate certificate) {
         String serialNumber = certificate.getSerialNumber();
         PublicKey publicKey = certificate.getPublicKey();
         String username = certificate.getUsername();

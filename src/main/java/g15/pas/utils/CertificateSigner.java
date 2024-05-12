@@ -62,7 +62,7 @@ public class CertificateSigner {
      * @return the byte array representation of the Certificate
      * @throws IOException if an error occurs during serialization
      */
-    private static byte[] serializeCertificate(Certificate certificate) throws IOException {
+    static byte[] serializeCertificate(Certificate certificate) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
 
@@ -88,7 +88,7 @@ public class CertificateSigner {
      * @return the hash of the Certificate
      * @throws NoSuchAlgorithmException if the specified algorithm is not available
      */
-    private static byte[] hashCertificate(byte[] certificateBytes) throws NoSuchAlgorithmException {
+    static byte[] hashCertificate(byte[] certificateBytes) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return digest.digest(certificateBytes);
     }
