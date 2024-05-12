@@ -26,6 +26,12 @@ public class Server {
     private final ServerSocket serverSocket;
     private final ConcurrentHashMap<String, ClientHandler> clients;
 
+    /**
+     * Constructor to initialize the Server.
+     *
+     * @param port The port number on which the server will listen for connections.
+     * @throws IOException If an I/O error occurs when opening the server socket.
+     */
     public Server(int port) throws IOException {
         Logger.log("A iniciar servidor...");
         this.serverSocket = new ServerSocket(port);
@@ -33,6 +39,9 @@ public class Server {
         Logger.log("Servidor iniciado com sucesso na porta \"%d\".", port);
     }
 
+    /**
+     * Starts the server, accepting client connections and creating a handler for each client.
+     */
     public void start() {
         Logger.log("Servidor à espera de conexões...");
 
@@ -50,10 +59,16 @@ public class Server {
         close();
     }
 
+    /**
+     * Stops the server.
+     */
     public void stop() {
         close();
     }
 
+    /**
+     * Closes the server socket.
+     */
     private void close() {
         try {
             Logger.log("A fechar servidor...");
@@ -64,6 +79,11 @@ public class Server {
         }
     }
 
+    /**
+     * Creates a new client handler for the given socket.
+     *
+     * @param socket The socket representing the client connection.
+     */
     private void createClientHandler(Socket socket) {
         try {
             Logger.log("A criar handler para o cliente...");
@@ -75,10 +95,21 @@ public class Server {
         }
     }
 
+    /**
+     * Adds a client to the server's client list.
+     *
+     * @param username      The username of the client.
+     * @param clientHandler The client handler associated with the client.
+     */
     private void addClient(String username, ClientHandler clientHandler) {
         clients.put(username, clientHandler);
     }
 
+    /**
+     * Removes a client from the server's client list and notifies other clients about the logout.
+     *
+     * @param username The username of the client to be removed.
+     */
     private void removeClient(String username) {
         clients.remove(username);
 
@@ -93,6 +124,11 @@ public class Server {
         }
     }
 
+    /**
+     * Handles an incoming message from a client by sending it to the appropriate recipients.
+     *
+     * @param message The message received from the client.
+     */
     private void handleMessage(Message message) {
         Collection<ClientHandler> recipients = clients.values();
 
@@ -116,6 +152,9 @@ public class Server {
         Logger.log("Mensagem de \"%s\" para %d destinatários enviada com sucesso: \"%s\"", message.getSender(), recipients.size(), message.getContent());
     }
 
+    /**
+     * Represents a client connection to the server.
+     */
     private class ClientHandler extends Thread {
 
         private final Socket socket;
@@ -123,12 +162,21 @@ public class Server {
         private final ObjectOutputStream out;
         private String username;
 
+        /**
+         * Constructor to initialize the client handler.
+         *
+         * @param socket The socket representing the client connection.
+         * @throws IOException If an I/O error occurs when creating the input or output streams.
+         */
         public ClientHandler(Socket socket) throws IOException {
             this.socket = socket;
             this.in = new ObjectInputStream(socket.getInputStream());
             this.out = new ObjectOutputStream(socket.getOutputStream());
         }
 
+        /**
+         * Runs the client handler thread, handling incoming messages from the client.
+         */
         @Override
         public void run() {
             try {
@@ -168,6 +216,9 @@ public class Server {
             closeConnection();
         }
 
+        /**
+         * Closes the client connection.
+         */
         private void closeConnection() {
             try {
                 Logger.log("A fechar conexão...");
@@ -186,6 +237,13 @@ public class Server {
             }
         }
 
+        /**
+         * Receives the certificate message from the client, validates the username,
+         * and propagates the certificate to other clients.
+         *
+         * @throws InvalidUsernameException    If the username is invalid or already in use.
+         * @throws InvalidCertificateException If an error occurs while receiving the certificate message.
+         */
         private void receiveCertificateMessage() throws InvalidUsernameException, InvalidCertificateException {
             try {
                 Logger.log("A receber certificado...");
@@ -216,6 +274,12 @@ public class Server {
             }
         }
 
+        /**
+         * Sends the certificate response to the client.
+         *
+         * @param response The response indicating whether the certificate was successfully received.
+         * @throws ConnectionException If an error occurs while sending the response.
+         */
         private void sendCertificateResponse(boolean response) throws ConnectionException {
             Logger.log("A enviar resposta do certificado...");
 
@@ -225,6 +289,12 @@ public class Server {
             Logger.log("Resposta do certificado enviada com sucesso.");
         }
 
+        /**
+         * Sends a message to the client.
+         *
+         * @param message The message to be sent.
+         * @throws ConnectionException If an error occurs while sending the message.
+         */
         public void sendMessage(Message message) throws ConnectionException {
             synchronized (out) {
                 try {
@@ -237,7 +307,5 @@ public class Server {
                 }
             }
         }
-
     }
-
 }

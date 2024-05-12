@@ -26,6 +26,13 @@ public class CertificateAuthority {
 
     private final ServerSocket caSocket;
 
+    /**
+     * Constructor to initialize the Certificate Authority.
+     *
+     * @param port The port number on which the CA will listen for connections.
+     * @throws IOException              If an I/O error occurs when opening the server socket.
+     * @throws KeyPairCreationException If an error occurs while generating the key pair.
+     */
     public CertificateAuthority(int port) throws IOException, KeyPairCreationException {
         // Create key pair
         System.out.println("A gerar par de chaves...");
@@ -45,6 +52,9 @@ public class CertificateAuthority {
         Logger.log("CA iniciada com sucesso na porta \"%d\".", port);
     }
 
+    /**
+     * Starts the Certificate Authority, accepting client connections.
+     */
     public void start() {
         Logger.log("CA à espera de conexões...");
 
@@ -62,10 +72,16 @@ public class CertificateAuthority {
         close();
     }
 
+    /**
+     * Stops the Certificate Authority.
+     */
     public void stop() {
         close();
     }
 
+    /**
+     * Closes the CA server socket.
+     */
     private void close() {
         try {
             Logger.log("A fechar CA...");
@@ -76,6 +92,11 @@ public class CertificateAuthority {
         }
     }
 
+    /**
+     * Creates a new client handler for the given socket.
+     *
+     * @param socket The socket representing the client connection.
+     */
     private void createClientHandler(Socket socket) {
         try {
             Logger.log("A criar handler para o cliente...");
@@ -87,6 +108,9 @@ public class CertificateAuthority {
         }
     }
 
+    /**
+     * Represents a client connection to the Certificate Authority.
+     */
     private class ClientHandler extends Thread {
 
         private final Socket socket;
@@ -94,12 +118,21 @@ public class CertificateAuthority {
         private final ObjectOutputStream out;
         private String username;
 
+        /**
+         * Constructor to initialize the client handler.
+         *
+         * @param socket The socket representing the client connection.
+         * @throws IOException If an I/O error occurs when creating the input or output streams.
+         */
         public ClientHandler(Socket socket) throws IOException {
             this.socket = socket;
             this.in = new ObjectInputStream(socket.getInputStream());
             this.out = new ObjectOutputStream(socket.getOutputStream());
         }
 
+        /**
+         * Runs the client handler thread, handling incoming messages from the client.
+         */
         @Override
         public void run() {
             while (true) {
@@ -120,6 +153,9 @@ public class CertificateAuthority {
             closeConnection();
         }
 
+        /**
+         * Closes the client connection.
+         */
         private void closeConnection() {
             try {
                 Logger.log("A fechar conexão...");
@@ -136,6 +172,11 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Handles an incoming message from the client.
+         *
+         * @param message The message received from the client.
+         */
         private void handleMessage(Message message) {
             Logger.log("A receber mensagem...");
 
@@ -154,6 +195,9 @@ public class CertificateAuthority {
             Logger.log("Mensagem recebida de \"%s\": \"%s\"", message.getSender(), message.getContent());
         }
 
+        /**
+         * Handles a public key request from the client.
+         */
         private void handlePublicKeyRequest() {
             try {
                 sendPublicKey();
@@ -163,6 +207,11 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Sends the CA's public key to the client.
+         *
+         * @throws ConnectionException If an error occurs while sending the public key.
+         */
         private void sendPublicKey() throws ConnectionException {
             Logger.log("A enviar chave pública...");
 
@@ -172,6 +221,9 @@ public class CertificateAuthority {
             Logger.log("Chave pública enviada com sucesso.");
         }
 
+        /**
+         * Handles a certificate signing request from the client.
+         */
         private void handleSignRequest() {
             try {
                 signCertificate(username);
@@ -196,6 +248,12 @@ public class CertificateAuthority {
             }
         }
 
+        /**
+         * Signs a certificate for the specified username.
+         *
+         * @param username The username for which to sign the certificate.
+         * @throws InvalidCertificateException If an error occurs while signing the certificate.
+         */
         private void signCertificate(String username) throws InvalidCertificateException {
             Logger.log("A assinar certificado para \"%s\"...", username);
 
@@ -212,6 +270,12 @@ public class CertificateAuthority {
             Logger.log("Certificado assinado com sucesso.");
         }
 
+        /**
+         * Sends a response to the client indicating the status of the certificate signing request.
+         *
+         * @param response The response status (true for success, false for failure).
+         * @throws ConnectionException If an error occurs while sending the response.
+         */
         private void sendSignResponse(boolean response) throws ConnectionException {
             Logger.log("A enviar resposta de assinatura de certificado...");
 
@@ -221,6 +285,12 @@ public class CertificateAuthority {
             Logger.log("Resposta de assinatura de certificado enviada com sucesso.");
         }
 
+        /**
+         * Sends a message to the client.
+         *
+         * @param message The message to be sent.
+         * @throws ConnectionException If an error occurs while sending the message.
+         */
         public void sendMessage(Message message) throws ConnectionException {
             synchronized (out) {
                 try {
@@ -233,7 +303,9 @@ public class CertificateAuthority {
                 }
             }
         }
-
     }
-
 }
+
+
+
+
