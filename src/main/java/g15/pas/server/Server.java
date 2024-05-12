@@ -4,9 +4,10 @@ import g15.pas.exceptions.ConnectionException;
 import g15.pas.exceptions.InvalidCertificateException;
 import g15.pas.exceptions.InvalidUsernameException;
 import g15.pas.message.Message;
+import g15.pas.message.enums.InfoType;
 import g15.pas.message.messages.BooleanMessage;
 import g15.pas.message.messages.CertificateMessage;
-import g15.pas.message.messages.TextMessage;
+import g15.pas.message.messages.InfoMessage;
 import g15.pas.server.validators.UsernameValidator;
 import g15.pas.utils.Logger;
 
@@ -76,16 +77,6 @@ public class Server {
 
     private void addClient(String username, ClientHandler clientHandler) {
         clients.put(username, clientHandler);
-
-        for (ClientHandler client : clients.values()) {
-            try {
-                TextMessage message = new TextMessage("O utilizador \"" + username + "\" ligou-se ao chat.");
-                client.sendMessage(message);
-            } catch (ConnectionException e) {
-                Logger.error("Ocorreu um erro ao enviar mensagem de entrada para \"%s\": " + e.getMessage(), client.username);
-                client.closeConnection();
-            }
-        }
     }
 
     private void removeClient(String username) {
@@ -93,11 +84,11 @@ public class Server {
 
         for (ClientHandler client : clients.values()) {
             try {
-                TextMessage message = new TextMessage("O utilizador \"" + username + "\" desligou-se do chat.");
+                InfoMessage message = new InfoMessage(InfoType.LOGOUT, username);
                 client.sendMessage(message);
             } catch (ConnectionException e) {
                 Logger.error("Ocorreu um erro ao enviar mensagem de saída para \"%s\": " + e.getMessage(), client.username);
-                if (!username.equals(client.username)) client.closeConnection();
+                client.closeConnection();
             }
         }
     }
@@ -112,6 +103,10 @@ public class Server {
                     .filter(client -> messageRecipients.contains(client.username))
                     .toList();
         }
+
+        recipients = recipients.stream()
+                .filter(client -> !client.username.equals(message.getSender()))
+                .toList();
 
         for (ClientHandler recipient : recipients) {
             try {

@@ -16,7 +16,6 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
@@ -33,7 +32,7 @@ public class CertificateAuthority {
         KeyPair keyPair;
         try {
             keyPair = Encryption.generateKeyPair();
-        } catch (NoSuchAlgorithmException e) {
+        } catch (Exception e) {
             throw new KeyPairCreationException("Erro ao criar o par de chaves: " + e.getMessage(), e);
         }
         this.privateKey = keyPair.getPrivate();
