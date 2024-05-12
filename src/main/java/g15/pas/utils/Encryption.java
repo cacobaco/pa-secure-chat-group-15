@@ -25,7 +25,7 @@ public class Encryption {
 
     public static PublicKey convertBytesToPublicKey(byte[] keyBytes) throws Exception {
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("AES");
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         return keyFactory.generatePublic(keySpec);
     }
 
