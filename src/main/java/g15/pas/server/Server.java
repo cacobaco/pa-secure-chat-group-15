@@ -113,6 +113,10 @@ public class Server {
                     .toList();
         }
 
+        recipients = recipients.stream()
+                .filter(client -> !client.username.equals(message.getSender()))
+                .toList();
+
         for (ClientHandler recipient : recipients) {
             try {
                 recipient.sendMessage(message);

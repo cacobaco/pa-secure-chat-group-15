@@ -379,6 +379,11 @@ public class Client {
         sendMessage(commandMessage);
     }
 
+    private void requestDHKey(String recipient) throws ConnectionException {
+        CommandMessage commandMessage = new CommandMessage(CommandType.REQUEST_PUBLIC_DH_KEY, username, new String[]{recipient});
+        sendMessage(commandMessage);
+    }
+
     /**
      * Sends an encrypted Diffie-Hellman key to a list of recipients.
      * This method is used when the client wants to establish a shared secret with multiple other clients.
@@ -391,24 +396,6 @@ public class Client {
     private void sendEncryptedDHKey(String recipient) throws Exception {
         EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
         out.writeObject(encryptedDHKey);
-    }
-
-    /**
-     * Sends an encrypted Diffie-Hellman key to a list of recipients.
-     * This method is used when the client wants to establish a shared secret with multiple other clients.
-     * It encrypts the client's public Diffie-Hellman key with the public key of each recipient and sends it to them.
-     * The recipients can then decrypt the Diffie-Hellman key, compute the shared secret, and store it for future communication.
-     *
-     * @param recipients an array of usernames of the recipients
-     * @throws Exception if an error occurs during the encryption or sending of the Diffie-Hellman key
-     */
-    private void sendEncryptedDHKey(String[] recipients) throws Exception {
-        List<String> recipientsList = List.of(recipients);
-        for (String recipient : recipientsList) {
-            if (sharedSecrets.containsKey(recipient)) continue;
-            EncryptedDHKeyMessage encryptedDHKey = new EncryptedDHKeyMessage(Encryption.encryptRSA(publicDHKey.toByteArray(), getRecipientPublicKey(recipient)), username, new String[]{recipient});
-            out.writeObject(encryptedDHKey);
-        }
     }
 
     /**
@@ -437,7 +424,20 @@ public class Client {
 
                 if (sharedSecret == null) {
                     sendEncryptedDHKey(recipient);
-                    continue;
+
+                    requestDHKey(recipient);
+
+                    int maxTries = 10;
+                    int tries = 0;
+                    while (sharedSecrets.get(recipient) == null && tries < maxTries) {
+                        Thread.sleep(100);
+                        tries++;
+                    }
+
+                    if (sharedSecrets.get(recipient) == null) {
+                        Logger.error("Não foi possível estabelecer uma chave partilhada com o cliente: " + recipient);
+                        continue;
+                    }
                 }
 
                 byte[] messageBytes = textMessage.getContent().getBytes(StandardCharsets.UTF_8);
@@ -529,8 +529,6 @@ public class Client {
                 } catch (InvalidCertificateException e) {
                     Logger.error("Ocorreu um erro ao processar o certificado: " + e.getMessage());
                 }
-
-                sendEncryptedDHKey(certificateMessage.getSender());
             } else if (message instanceof CommandMessage commandMessage) {
                 try {
                     handleCommandMessage(commandMessage);
