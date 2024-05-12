@@ -3,6 +3,7 @@ package g15.pas.utils;
 import javax.crypto.Cipher;
 import java.nio.charset.Charset;
 import java.security.*;
+import java.security.spec.X509EncodedKeySpec;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -93,5 +94,11 @@ public class Encryption {
         return cipher.doFinal ( message );
     }
 
+    public static PublicKey convertBytesToPublicKey(byte[] keyBytes) throws Exception {
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance(ALGORITHM);
+        return keyFactory.generatePublic(keySpec);
+    }
+    
 }
 

@@ -14,18 +14,28 @@ public class Config {
 
     public static final String SERVER_HOST;
     public static final int SERVER_PORT;
+
     public static final int MIN_USERNAME_LENGTH;
     public static final int MAX_USERNAME_LENGTH;
     public static final String USERNAME_REGEX;
+
+    public static final String CA_HOST;
+    public static final int CA_PORT;
+    public static final String CA_PATH;
 
     static {
         loadProperties();
 
         SERVER_HOST = properties.getProperty("server.host", "localhost");
         SERVER_PORT = Integer.parseUnsignedInt(properties.getProperty("server.port", "8000"));
+
         MIN_USERNAME_LENGTH = Integer.parseUnsignedInt(properties.getProperty("username.min.length", "3"));
         MAX_USERNAME_LENGTH = Integer.parseUnsignedInt(properties.getProperty("username.max.length", "20"));
         USERNAME_REGEX = properties.getProperty("username.regex", "^[a-zA-Z0-9_]+$");
+
+        CA_HOST = properties.getProperty("ca.host", "localhost");
+        CA_PORT = Integer.parseUnsignedInt(properties.getProperty("ca.port", "8100"));
+        CA_PATH = properties.getProperty("ca.path", "ca");
     }
 
     /**
